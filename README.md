@@ -34,8 +34,10 @@ nothing is built from source, and `npm install` is the only staging step.
 | `@runanywhere/electron-sherpa` | Sherpa backend — STT, TTS, VAD |
 | `@runanywhere/proto-ts` | Generated protobuf types |
 
-> **Known-red build:** none of these packages are published to npm at `0.20.15`
-> yet, so `npm install` currently fails with `E404`. There is also **no
+> **Known-red build:** the four `@runanywhere/electron*` packages are not on npm
+> at all yet, so `npm install` fails with `npm error code E404` on
+> `@runanywhere/electron@^0.20.15`. `@runanywhere/proto-ts` does exist but tops
+> out at `0.20.10`, so it will need 0.20.15 too. There is also **no
 > `package-lock.json`** in this repo — the old one pinned monorepo `file:` paths
 > and could not be regenerated before publish. Generate and commit one with
 > `npm install` as soon as the packages land.

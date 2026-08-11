@@ -5,15 +5,17 @@ name: CI
 # prebuilds) from the npm registry, then type-checks, lints and unit-tests the
 # desktop app.
 #
-# CURRENTLY EXPECTED TO FAIL — waiting on unpublished packages. None of the five
-# SDK dependencies in package.json exist on npm yet at 0.20.15:
-#   @runanywhere/electron, @runanywhere/electron-llamacpp,
-#   @runanywhere/electron-onnx, @runanywhere/electron-sherpa,
-#   @runanywhere/proto-ts
-# so the install step dies with E404 and everything after it is skipped. This job
-# is deliberately blocking and red rather than faked green with
-# continue-on-error: the red IS the accurate status. It turns green on its own
-# the moment those five packages publish — nothing in this file needs editing.
+# CURRENTLY EXPECTED TO FAIL — waiting on unpublished packages:
+#   * @runanywhere/electron, -electron-llamacpp, -electron-onnx, -electron-sherpa
+#     do not exist on npm at all — the install step dies with
+#       npm error code E404
+#       npm error 404 Not Found - GET https://registry.npmjs.org/@runanywhere%2felectron
+#   * @runanywhere/proto-ts exists but tops out at 0.20.10, so it would fail with
+#     ETARGET against the ^0.20.15 range even once the electron packages land.
+# Everything after install is skipped. This job is deliberately blocking and red
+# rather than faked green with continue-on-error: the red IS the accurate status.
+# It turns green on its own once 0.20.15 of all five publishes — nothing in this
+# file needs editing.
 
 on:
   push:
