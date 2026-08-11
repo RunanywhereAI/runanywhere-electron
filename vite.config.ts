@@ -8,24 +8,10 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 // tsconfig.*.build.json) because Electron loads them as CommonJS and they need
 // no bundling — externalizing every native dependency is the whole job there.
 //
-// `@runanywhere/proto-ts` IS aliased, to the built `dist/*.js`.
-//
-// The tsconfigs map `@runanywhere/proto-ts/*` -> `dist/*.d.ts` as a typecheck-time
-// shim (see tsconfig.base.json). Vite 8's rolldown resolver honours tsconfig
-// `paths` during the bundle too, so without this alias the renderer resolves a
-// *declaration* file, type-stripping leaves an empty module, and any runtime
-// value import fails as MISSING_EXPORT (`audioCaptureDefaults` was the first).
-// Aliasing to the emitted JS keeps the bundle on exactly the module the package
-// `exports` map points at, while typecheck keeps reading the same declarations.
-//
-// Only the dependency-free modules are reachable this way (`defaults/*`,
-// `streams/*` — which is all the renderer uses). A generated MESSAGE module
-// additionally imports `@bufbuild/protobuf/wire`, and that cannot resolve: the
-// package is linked, so resolution realpaths into `sdk/shared/proto-ts/`, which
-// has no `node_modules` beside it. Import domain enums from
-// `@runanywhere/electron` instead — it re-exports them as plain strings, and it
-// resolves proto-ts from its OWN node_modules where the runtime does sit.
-const protoTsDist = path.resolve(dir, '../../../sdk/shared/proto-ts/dist');
+// `@runanywhere/proto-ts` needs no alias: it is a normal registry dependency,
+// so its own `exports` map resolves it from node_modules for both types and
+// runtime. It used to be aliased because the workspace symlink realpathed into
+// the monorepo, which no longer exists here.
 
 export default defineConfig({
   root: path.resolve(dir, 'src/renderer'),
@@ -35,8 +21,6 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@shared\/(.*)$/, replacement: path.resolve(dir, 'src/shared/$1') },
-      { find: /^@runanywhere\/proto-ts$/, replacement: path.join(protoTsDist, 'index.js') },
-      { find: /^@runanywhere\/proto-ts\/(.*)$/, replacement: path.join(protoTsDist, '$1.js') },
     ],
   },
   build: {
