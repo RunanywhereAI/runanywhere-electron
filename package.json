@@ -32,6 +32,7 @@
     "@runanywhere/electron": "^0.20.15",
     "@runanywhere/electron-llamacpp": "^0.20.15",
     "@runanywhere/electron-onnx": "^0.20.15",
+    "@runanywhere/electron-qhexrt": "^0.20.15",
     "@runanywhere/electron-sherpa": "^0.20.15",
     "@runanywhere/proto-ts": "^0.20.15"
   },
