@@ -29,12 +29,12 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "@runanywhere/electron": "^0.20.16",
-    "@runanywhere/electron-llamacpp": "^0.20.16",
-    "@runanywhere/electron-onnx": "^0.20.16",
-    "@runanywhere/electron-qhexrt": "^0.20.16",
-    "@runanywhere/electron-sherpa": "^0.20.16",
-    "@runanywhere/proto-ts": "^0.20.16"
+    "@runanywhere/electron": "^0.20.17",
+    "@runanywhere/electron-llamacpp": "^0.20.17",
+    "@runanywhere/electron-onnx": "^0.20.17",
+    "@runanywhere/electron-qhexrt": "^0.20.17",
+    "@runanywhere/electron-sherpa": "^0.20.17",
+    "@runanywhere/proto-ts": "^0.20.17"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
