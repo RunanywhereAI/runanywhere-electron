@@ -4,37 +4,81 @@ The shipping desktop app built on `@runanywhere/electron`. Everything runs
 **on-device** — chat, reasoning, your own knowledge base (RAG), voice, and vision.
 No prompt, document, or audio leaves the machine.
 
-This is the app we package and publish; `examples/electron/RunAnywhereAI` remains
-the SDK's example/demo.
+This is the app we package and publish, built on the RunAnywhere Electron SDK
+consumed straight from npm.
+
+## Install the SDK
+
+The SDK is consumed **entirely from the npm registry**. There are no `file:`
+links and no path aliases into any SDK checkout, so the app builds standalone
+anywhere the folder is copied. The native prebuilds ship inside the
+`@runanywhere/electron` package (`node_modules/@runanywhere/electron/prebuilds/`) —
+nothing is built from source, and `npm install` is the only staging step.
+
+```jsonc
+// package.json — the actual, current declarations
+"dependencies": {
+  "@runanywhere/electron":          "^0.20.15",
+  "@runanywhere/electron-llamacpp": "^0.20.15",
+  "@runanywhere/electron-onnx":     "^0.20.15",
+  "@runanywhere/electron-sherpa":   "^0.20.15",
+  "@runanywhere/proto-ts":          "^0.20.15"
+}
+```
+
+| Package | Role |
+|---|---|
+| `@runanywhere/electron` | Core SDK — main-process host, preload (`window.runanywhere`), native prebuilds |
+| `@runanywhere/electron-llamacpp` | LlamaCPP backend — LLM, VLM |
+| `@runanywhere/electron-onnx` | ONNX backend — embeddings, segmentation |
+| `@runanywhere/electron-sherpa` | Sherpa backend — STT, TTS, VAD |
+| `@runanywhere/proto-ts` | Generated protobuf types |
+
+> **Known-red build:** none of these packages are published to npm at `0.20.15`
+> yet, so `npm install` currently fails with `E404`. There is also **no
+> `package-lock.json`** in this repo — the old one pinned monorepo `file:` paths
+> and could not be regenerated before publish. Generate and commit one with
+> `npm install` as soon as the packages land.
 
 ## Run it
 
-Double-click the **RunAnywhere AI** desktop shortcut, or:
+```bash
+git clone https://github.com/RunanywhereAI/runanywhere-electron.git
+cd runanywhere-electron
 
-```bat
-"examples\electron\RunAnywhereAI\RunAnywhere AI.cmd"
-"examples\electron\RunAnywhereAI\RunAnywhere AI (GPU).cmd"
+npm install        # pulls the SDK + native prebuilds from npm
+npm start          # build, then launch on CPU
+npm run start:gpu  # launch with the CUDA prebuild (RA_GPU=1)
+npm run dev        # watch mode: vite + electron
 ```
 
-or from a terminal:
+On Windows you can also double-click the **RunAnywhere AI** desktop shortcut, or
+run the launchers in the repo root:
 
 ```bat
-cd examples/electron/RunAnywhereAI
-npm install        :: pulls the SDK from npm
-npm start          :: CPU
-npm run start:gpu  :: CUDA
+"RunAnywhere AI.cmd"
+"RunAnywhere AI (GPU).cmd"
 ```
-
-The only prerequisite is `npm install`. This app consumes the SDK **entirely from
-the npm registry** — `@runanywhere/electron` plus the `-llamacpp` / `-onnx` /
-`-sherpa` backend packages and `@runanywhere/proto-ts`. There are no `file:` links
-and no path aliases into the monorepo, so the app builds standalone anywhere the
-folder is copied. The native prebuilds ship inside the `@runanywhere/electron`
-package (`node_modules/@runanywhere/electron/prebuilds/`); nothing has to be built
-from source.
 
 > If the window never appears, check that `ELECTRON_RUN_AS_NODE` isn't set — it makes
 > `electron.exe` run as plain Node. The `.cmd` launcher clears it.
+
+## Verify
+
+| Script | What it does |
+|---|---|
+| `npm run typecheck` | `tsc --noEmit` across main, preload and renderer configs |
+| `npm run lint` | ESLint over `src`, zero warnings tolerated |
+| `npm run test` | Vitest unit tests (`test/unit/**`) |
+| `npm run build` | CJS main + preload, ESM renderer bundle into `out/` |
+| `npm run test:e2e` | Playwright drives the real Electron window (screenshot baselines) |
+
+`.github/workflows/ci.yml` runs the first four on `ubuntu-latest` + Node 24 for
+every push to `main` and every pull request. The Playwright e2e suite is
+deliberately **not** in CI: it launches the real Electron binary with the ~43 MB
+native addon and compares screenshot baselines, which belongs on a local or
+self-hosted runner. CI installs with `npm install` rather than `npm ci` until a
+`package-lock.json` exists (see above); the workflow comment says the same.
 
 ## Layout
 

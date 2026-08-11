@@ -1,0 +1,73 @@
+name: CI
+
+# What this gate proves: a clean clone of THIS repo — with no monorepo checkout
+# and no `file:` links — installs the RunAnywhere Electron SDK (and its native
+# prebuilds) from the npm registry, then type-checks, lints and unit-tests the
+# desktop app.
+#
+# CURRENTLY EXPECTED TO FAIL — waiting on unpublished packages. None of the five
+# SDK dependencies in package.json exist on npm yet at 0.20.15:
+#   @runanywhere/electron, @runanywhere/electron-llamacpp,
+#   @runanywhere/electron-onnx, @runanywhere/electron-sherpa,
+#   @runanywhere/proto-ts
+# so the install step dies with E404 and everything after it is skipped. This job
+# is deliberately blocking and red rather than faked green with
+# continue-on-error: the red IS the accurate status. It turns green on its own
+# the moment those five packages publish — nothing in this file needs editing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `cache: npm` here — setup-node's npm cache requires a lock file, and
+      # this repo has none (see below).
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # `npm ci` is the intended end state but is impossible today: this repo has
+      # NO package-lock.json. The old one pinned monorepo `file:` paths, so it was
+      # deleted when the app moved to registry-only consumption, and it could not
+      # be regenerated because the @runanywhere/* packages are not published yet.
+      # `npm install` resolves straight from the registry instead.
+      #
+      # TO RETIRE THIS: once @runanywhere/electron* + @runanywhere/proto-ts@0.20.15
+      # are on npm, run `npm install` locally, commit the generated
+      # package-lock.json, then switch this to `npm ci` and add `cache: npm` to
+      # the setup-node step above.
+      - name: Install dependencies (SDK from npm)
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck (main + preload + renderer)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Unit tests only (vitest, test/unit/**). The Playwright suite under
+      # test/e2e is deliberately NOT run here: it launches the real Electron
+      # binary with the ~43 MB native addon and compares screenshot baselines,
+      # which is a local/self-hosted gate, not a hosted-runner one.
+      - name: Unit tests
+        run: npm run test
+
+      # Compiles main (CJS), preload (CJS) and the Vite renderer bundle — the
+      # same output `npm start` and electron-builder consume. Packaging itself is
+      # out of scope for CI.
+      - name: Build
+        run: npm run build
