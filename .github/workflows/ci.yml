@@ -2,20 +2,13 @@ name: CI
 
 # What this gate proves: a clean clone of THIS repo — with no monorepo checkout
 # and no `file:` links — installs the RunAnywhere Electron SDK (and its native
-# prebuilds) from the npm registry, then type-checks, lints and unit-tests the
-# desktop app.
+# prebuilds) from the npm registry, then type-checks, lints, unit-tests and
+# builds the desktop app.
 #
-# CURRENTLY EXPECTED TO FAIL — waiting on unpublished packages:
-#   * @runanywhere/electron, -electron-llamacpp, -electron-onnx, -electron-sherpa
-#     do not exist on npm at all — the install step dies with
-#       npm error code E404
-#       npm error 404 Not Found - GET https://registry.npmjs.org/@runanywhere%2felectron
-#   * @runanywhere/proto-ts exists but tops out at 0.20.10, so it would fail with
-#     ETARGET against the ^0.20.15 range even once the electron packages land.
-# Everything after install is skipped. This job is deliberately blocking and red
-# rather than faked green with continue-on-error: the red IS the accurate status.
-# It turns green on its own once 0.20.15 of all five publishes — nothing in this
-# file needs editing.
+# The install is `npm ci` against the committed package-lock.json, so the tree
+# CI resolves is byte-for-byte the tree a developer gets. Bump the SDK by
+# editing package.json and committing the regenerated lock file — never by
+# letting the range float at install time.
 
 on:
   push:
@@ -36,24 +29,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # No `cache: npm` here — setup-node's npm cache requires a lock file, and
-      # this repo has none (see below).
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: npm
 
-      # `npm ci` is the intended end state but is impossible today: this repo has
-      # NO package-lock.json. The old one pinned monorepo `file:` paths, so it was
-      # deleted when the app moved to registry-only consumption, and it could not
-      # be regenerated because the @runanywhere/* packages are not published yet.
-      # `npm install` resolves straight from the registry instead.
-      #
-      # TO RETIRE THIS: once @runanywhere/electron* + @runanywhere/proto-ts@0.20.15
-      # are on npm, run `npm install` locally, commit the generated
-      # package-lock.json, then switch this to `npm ci` and add `cache: npm` to
-      # the setup-node step above.
+      # `npm ci` — installs exactly what package-lock.json pins, and fails rather
+      # than silently rewriting the lock file if package.json has drifted from it.
       - name: Install dependencies (SDK from npm)
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck (main + preload + renderer)
         run: npm run typecheck
@@ -63,8 +47,8 @@ jobs:
 
       # Unit tests only (vitest, test/unit/**). The Playwright suite under
       # test/e2e is deliberately NOT run here: it launches the real Electron
-      # binary with the ~43 MB native addon and compares screenshot baselines,
-      # which is a local/self-hosted gate, not a hosted-runner one.
+      # binary with the ~43 MB native addon, which is a local/self-hosted gate,
+      # not a hosted-runner one.
       - name: Unit tests
         run: npm run test
 

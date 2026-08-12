@@ -1,7 +1,8 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
-// Mirrors examples/web/RunAnywhereAI/eslint.config.mjs so one habit set covers
+// Mirrors the Web example app's eslint.config.mjs (examples/web/RunAnywhereAI
+// in the runanywhere-sdks monorepo) so one habit set covers
 // both example apps, plus the Electron-specific process boundaries.
 export default tseslint.config(
   {

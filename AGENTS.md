@@ -1,6 +1,12 @@
 # AGENTS.md
 
-RunAnywhere AI — the Electron desktop example app. `CLAUDE.md` is a symlink to this file.
+RunAnywhere AI — the Electron desktop app, built on the published
+`@runanywhere/electron` SDK. `CLAUDE.md` is a symlink to this file.
+
+This repo is standalone: it consumes the SDK from the npm registry and has no checkout of, or path
+into, the `RunanywhereAI/runanywhere-sdks` monorepo. Where a rule below was inherited from a
+sibling app or from the SDK source, the reference is given as a monorepo path — read it as "in the
+`runanywhere-sdks` repo", not as a directory you will find here.
 
 Everything runs **on-device**: chat, reasoning, your own knowledge base, voice, and vision. No
 prompt, document, or audio leaves the machine.
@@ -12,8 +18,9 @@ prompt, document, or audio leaves the machine.
 ### 1. TypeScript only, strictly typed
 
 **Every authored file in this app is TypeScript.** Main process, preload, renderer, shared
-modules, build config, tests. There is no JavaScript in source. The conventions are the same as
-`examples/web/RunAnywhereAI` and `sdk/runanywhere-electron`, so one habit set covers all three.
+modules, build config, tests. There is no JavaScript in source. The conventions are the same as the
+Web example app and the Electron SDK itself (`examples/web/RunAnywhereAI` and
+`sdk/runanywhere-electron` in the monorepo), so one habit set covers all three.
 
 - **`strict: true`** in all three tsconfigs (`main`, `preload`, `renderer`), never weakened
   per-file.
@@ -48,7 +55,8 @@ npm test            # unit + Electron smoke
 
 ### 2. Almost no logic lives here
 
-Per the root `AGENTS.md`, **logic belongs at the lowest layer that can serve all consumers**:
+Per the monorepo's root `AGENTS.md`, **logic belongs at the lowest layer that can serve all
+consumers**:
 
 ```text
 C++ commons  ->  owns ALL AI logic (inference, lifecycle, registry, download, RAG, routing)
@@ -58,7 +66,8 @@ C++ commons  ->  owns ALL AI logic (inference, lifecycle, registry, download, RA
 
 **iOS/macOS Swift is the canonical reference.** When behaviour is ambiguous, read the Swift app
 and copy its logic exactly, adapting syntax only. This app must be visually and functionally
-indistinguishable from the macOS target of `examples/ios/RunAnywhereAI`.
+indistinguishable from the macOS target of the Swift example app
+(`examples/ios/RunAnywhereAI` in the monorepo).
 
 If you find yourself writing any of the following, **stop — it is a bug one layer down**:
 
@@ -69,9 +78,9 @@ If you find yourself writing any of the following, **stop — it is a bug one la
 - a re-implementation of something the SDK already does privately
 - a hand-maintained copy of an SDK-internal mapping
 
-Fix it in the SDK, or in commons if it is cross-platform, and let all six SDKs benefit. The
-running list of things that were pushed down out of this app is in
-`thoughts/shared/plans/electron_app_parity.md` §5a.
+Fix it in the SDK, or in commons if it is cross-platform, and let all six SDKs benefit — which
+means the fix lands in the `runanywhere-sdks` monorepo and reaches this app as a published version
+bump, not as a patch here.
 
 **What legitimately belongs here:** the model catalog table (every platform owns its own —
 `ModelCatalogBootstrap.swift`, `ModelCatalog.kt`, `model-catalog.ts`), copy strings and prompt
@@ -83,23 +92,29 @@ mask painter.
 
 ## Design parity is a gate
 
-The app must be **indistinguishable** from the macOS SwiftUI app. Tokens are transcribed from
-`examples/ios/RunAnywhereAI/RunAnywhereAI/Core/DesignSystem/` (the macOS branch of every
-`#if os(macOS)`) into `src/renderer/design/tokens.css`, which is the **one** theme file — no
-component invents a value.
+The app must be **indistinguishable** from the macOS SwiftUI app. Tokens were transcribed from the
+Swift design system (`examples/ios/RunAnywhereAI/RunAnywhereAI/Core/DesignSystem/` in the
+monorepo — the macOS branch of every `#if os(macOS)`) into `src/renderer/design/tokens.css`, which
+is the **one** theme file here — no component invents a value.
 
 Two things are easy to get wrong:
 
 1. **Use the Swift cool blue-ink neutrals** (`#FBFAF8` / `#0C0E17` / `#131620` / `#10182B`), which
-   match `examples/DESIGN_GUIDELINE.md §2`. The Web example ships *warm* neutrals that appear in
-   neither the guideline nor the Swift app — do not copy them.
+   match the shared design guideline (`examples/DESIGN_GUIDELINE.md §2` in the monorepo). The Web
+   example ships *warm* neutrals that appear in neither the guideline nor the Swift app — do not
+   copy them.
 2. **Use the macOS column** wherever iOS and macOS differ (e.g. composer radius is **16**, not the
    iOS 28; `hitTarget` is 28, not 44).
 
-Parity is verified by driving both apps and comparing screenshots per screen, in light and dark —
-not by reading code. Motion is asserted from computed styles against the Motion table, and
-`prefers-reduced-motion` must produce a 150 ms crossfade (not a 0 ms blink) with ambient loops
-stopped. See workstream K in the plan.
+**How parity is checked.** Side-by-side screenshot comparison against the Swift app is a *human*
+review step, done when chrome changes — it is not automated here. There is deliberately **no
+committed pixel baseline**: a `toHaveScreenshot` diff is a function of the machine that produced it
+(font antialiasing, GPU compositing), this suite has no canonical runner (it needs the real
+Electron binary plus the ~43 MB native addon, so it stays off the hosted CI runner), and the app
+ships on both macOS and Windows. What the e2e suite asserts instead is everything portable: tokens
+and motion resolved from computed styles against the Motion table, one selected destination per
+route, and `prefers-reduced-motion` producing a 150 ms crossfade (not a 0 ms blink) with ambient
+loops stopped. See `test/e2e/screens.spec.ts` and `test/e2e/shell.spec.ts`.
 
 ---
 

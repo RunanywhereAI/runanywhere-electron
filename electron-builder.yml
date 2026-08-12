@@ -1,4 +1,4 @@
-# Packaging for RunAnywhere AI (examples/electron/RunAnywhereAI).
+# Packaging for RunAnywhere AI (RunanywhereAI/runanywhere-electron).
 # Invoked by `npm run package` / `package:mac` / `package:win`.
 #
 # Native artifacts cannot load from inside app.asar. asarUnpack covers the fat

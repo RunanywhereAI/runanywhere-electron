@@ -26,6 +26,28 @@ export async function setTheme(page: Page, theme: Theme): Promise<void> {
   }, theme);
 }
 
+/**
+ * Resolve the theme's ground tokens through a probe element.
+ *
+ * Read as `color` rather than the raw custom property: Chromium may serialize
+ * `#ffffff` as `#fff`, but a resolved `color` is always `rgb(...)`. This is the
+ * portable half of a screenshot — it proves the theme reached the paint, on any
+ * machine's fonts and GPU.
+ */
+export async function readThemeTokens(page: Page): Promise<{ background: string; surface: string }> {
+  return page.evaluate(() => {
+    const read = (name: string): string => {
+      const probe = document.createElement('div');
+      probe.style.color = `var(${name})`;
+      document.body.append(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    };
+    return { background: read('--ra-background'), surface: read('--ra-surface') };
+  });
+}
+
 /** Navigate the detail column by hash (mirrors the shell router). */
 export async function goRoute(page: Page, route: ShellRoute | string): Promise<void> {
   await page.evaluate((r) => {

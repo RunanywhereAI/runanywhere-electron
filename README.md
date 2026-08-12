@@ -13,16 +13,17 @@ The SDK is consumed **entirely from the npm registry**. There are no `file:`
 links and no path aliases into any SDK checkout, so the app builds standalone
 anywhere the folder is copied. The native prebuilds ship inside the
 `@runanywhere/electron` package (`node_modules/@runanywhere/electron/prebuilds/`) —
-nothing is built from source, and `npm install` is the only staging step.
+nothing is built from source, and `npm ci` is the only staging step.
 
 ```jsonc
 // package.json — the actual, current declarations
 "dependencies": {
-  "@runanywhere/electron":          "^0.20.15",
-  "@runanywhere/electron-llamacpp": "^0.20.15",
-  "@runanywhere/electron-onnx":     "^0.20.15",
-  "@runanywhere/electron-sherpa":   "^0.20.15",
-  "@runanywhere/proto-ts":          "^0.20.15"
+  "@runanywhere/electron":          "^0.20.17",
+  "@runanywhere/electron-llamacpp": "^0.20.17",
+  "@runanywhere/electron-onnx":     "^0.20.17",
+  "@runanywhere/electron-qhexrt":   "^0.20.17",
+  "@runanywhere/electron-sherpa":   "^0.20.17",
+  "@runanywhere/proto-ts":          "^0.20.17"
 }
 ```
 
@@ -31,16 +32,13 @@ nothing is built from source, and `npm install` is the only staging step.
 | `@runanywhere/electron` | Core SDK — main-process host, preload (`window.runanywhere`), native prebuilds |
 | `@runanywhere/electron-llamacpp` | LlamaCPP backend — LLM, VLM |
 | `@runanywhere/electron-onnx` | ONNX backend — embeddings, segmentation |
+| `@runanywhere/electron-qhexrt` | QHexRT backend — Qualcomm Hexagon NPU (no-ops where there is no prebuild) |
 | `@runanywhere/electron-sherpa` | Sherpa backend — STT, TTS, VAD |
 | `@runanywhere/proto-ts` | Generated protobuf types |
 
-> **Known-red build:** the four `@runanywhere/electron*` packages are not on npm
-> at all yet, so `npm install` fails with `npm error code E404` on
-> `@runanywhere/electron@^0.20.15`. `@runanywhere/proto-ts` does exist but tops
-> out at `0.20.10`, so it will need 0.20.15 too. There is also **no
-> `package-lock.json`** in this repo — the old one pinned monorepo `file:` paths
-> and could not be regenerated before publish. Generate and commit one with
-> `npm install` as soon as the packages land.
+The resolved tree is pinned by the committed `package-lock.json`. Use `npm ci`
+for a reproducible install; `npm install` is only for deliberately moving a
+dependency, and the regenerated lock file is committed with that change.
 
 ## Run it
 
@@ -48,7 +46,7 @@ nothing is built from source, and `npm install` is the only staging step.
 git clone https://github.com/RunanywhereAI/runanywhere-electron.git
 cd runanywhere-electron
 
-npm install        # pulls the SDK + native prebuilds from npm
+npm ci             # pulls the SDK + native prebuilds from npm, exactly as locked
 npm start          # build, then launch on CPU
 npm run start:gpu  # launch with the CUDA prebuild (RA_GPU=1)
 npm run dev        # watch mode: vite + electron
@@ -73,14 +71,24 @@ run the launchers in the repo root:
 | `npm run lint` | ESLint over `src`, zero warnings tolerated |
 | `npm run test` | Vitest unit tests (`test/unit/**`) |
 | `npm run build` | CJS main + preload, ESM renderer bundle into `out/` |
-| `npm run test:e2e` | Playwright drives the real Electron window (screenshot baselines) |
+| `npm run test:e2e` | Playwright drives the real Electron window |
 
 `.github/workflows/ci.yml` runs the first four on `ubuntu-latest` + Node 24 for
-every push to `main` and every pull request. The Playwright e2e suite is
-deliberately **not** in CI: it launches the real Electron binary with the ~43 MB
-native addon and compares screenshot baselines, which belongs on a local or
-self-hosted runner. CI installs with `npm install` rather than `npm ci` until a
-`package-lock.json` exists (see above); the workflow comment says the same.
+every push to `main` and every pull request, installing with `npm ci` against the
+committed lock file. The Playwright e2e suite is deliberately **not** in CI: it
+launches the real Electron binary with the ~43 MB native addon, which belongs on
+a local or self-hosted runner.
+
+The e2e suite carries **no screenshot baselines**. A pixel diff is a function of
+the machine that produced it — font antialiasing and GPU compositing move the
+bytes — and there is no canonical runner to produce one on (the suite is off CI
+by design, and the app ships on both macOS and Windows), so a committed baseline
+would be red for most contributors and an uncommitted one is red on every fresh
+clone and green on the re-run. What the suite asserts instead is the portable
+half: design tokens and motion durations resolved from computed styles, one
+selected destination per route, and the reduced-motion contract. Comparing
+screenshots against the macOS Swift app stays a human review step when chrome
+changes.
 
 ## Layout
 
@@ -93,7 +101,7 @@ renderer bundle under `out/`. `"main"` is `out/main/index.cjs`.
 | `src/preload/` | Loads the SDK preload (`window.runanywhere`) and exposes `window.appStore` |
 | `src/shared/model-catalog.ts` | The app's model table. Staged into the SDK by preload and by the utility host (`catalogPath`), which is what makes a catalog id resolvable in both processes |
 | `src/renderer/` | The UI — Vite entry (`index.html` / `settings.html`) + feature views |
-| `assets/make-icon.ts` | Regenerates `assets/icon.ico` + `icon.png` — `npm run icon` |
+| `assets/` | The app icons electron-builder ships (`icon.png`, `icon.ico`), committed as artifacts |
 
 Conversations, settings, and custom models persist as JSON under
 `%APPDATA%\RunAnywhere AI\` (or `~/Library/Application Support/RunAnywhere AI/` on macOS).
@@ -130,6 +138,6 @@ npm run package:win    # nsis (x64 + arm64)
 Native artifacts under `node_modules/@runanywhere/electron/prebuilds/` (and any
 future `.node` / `.dylib` / `.dll` / `.so` / `plugins/`) are `asarUnpack`ed — they
 cannot load from inside `app.asar`. They arrive with the published package, so
-`npm install` is all the staging there is.
+`npm ci` is all the staging there is.
 
 Publishing / code signing is not wired yet; local packages are unsigned.

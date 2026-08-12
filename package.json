@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Private, on-device AI for macOS and Windows \u2014 chat, reasoning, your own knowledge base, voice, and vision. Nothing leaves your machine.",
   "author": "RunAnywhere",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "type": "module",
   "main": "out/main/index.cjs",
@@ -20,7 +20,6 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "selftest": "npm run build && cross-env RA_SELFTEST=1 electron .",
-    "icon": "tsc -p tsconfig.icon.json && electron out/icon/make-icon.js",
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win"
