@@ -11,21 +11,28 @@ consumed straight from npm.
 
 The SDK is consumed **entirely from the npm registry**. There are no `file:`
 links and no path aliases into any SDK checkout, so the app builds standalone
-anywhere the folder is copied. The native prebuilds ship inside the
-`@runanywhere/electron` package (`node_modules/@runanywhere/electron/prebuilds/`) —
-nothing is built from source, and `npm ci` is the only staging step.
+anywhere the folder is copied. Each package ships its own native prebuilds
+(`node_modules/@runanywhere/<pkg>/prebuilds/<platform>-<arch>/`): the core addon
+plus shared commons in `@runanywhere/electron`, and one thin plugin carrier plus
+its engine payload in each backend package. Nothing is built from source, and
+`npm ci` is the only staging step.
 
 ```jsonc
 // package.json — the actual, current declarations
 "dependencies": {
-  "@runanywhere/electron":          "^0.20.17",
-  "@runanywhere/electron-llamacpp": "^0.20.17",
-  "@runanywhere/electron-onnx":     "^0.20.17",
+  "@runanywhere/electron":          "^0.20.18",
+  "@runanywhere/electron-llamacpp": "^0.20.18",
+  "@runanywhere/electron-onnx":     "^0.20.18",
   "@runanywhere/electron-qhexrt":   "^0.20.17",
-  "@runanywhere/electron-sherpa":   "^0.20.17",
-  "@runanywhere/proto-ts":          "^0.20.17"
+  "@runanywhere/electron-sherpa":   "^0.20.18",
+  "@runanywhere/proto-ts":          "^0.20.18"
 }
 ```
+
+`@runanywhere/electron-qhexrt` stays a minor behind on purpose: 0.20.17 is its
+latest published version, and it is npm-deprecated because no Hexagon NPU
+prebuild exists for any platform yet. It is declared unconditionally and simply
+never appears in `capabilities().backends` — see the table note below.
 
 | Package | Role |
 |---|---|
