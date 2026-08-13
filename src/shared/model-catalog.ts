@@ -221,8 +221,8 @@ function piper(voice: string, label: string, sizeMB: number): CatalogEntry {
 }
 
 // Every URL below was HTTP-verified (200 + "GGUF" magic bytes) on 2026-07-27,
-// and the LFM2.5 230M row on 2026-08-05. Sizes are the real content-length, not
-// estimates.
+// the LFM2.5 230M row on 2026-08-05, and the LFM2.5 VL 3B row on 2026-08-13.
+// Sizes are the real content-length, not estimates.
 export const CATALOG: Catalog = {
   // ---- Qwen3.5 (chat + vision; one repo ships both the model and its projector) ----
   'qwen3.5-0.8b': llm('unsloth/Qwen3.5-0.8B-GGUF', 'Qwen3.5-0.8B-Q4_K_M.gguf', 'Qwen3.5 0.8B', '0.8B', 508),
@@ -239,6 +239,9 @@ export const CATALOG: Catalog = {
   'lfm2.5-1.2b': llm('LiquidAI/LFM2.5-1.2B-Instruct-GGUF', 'LFM2.5-1.2B-Instruct-Q4_K_M.gguf', 'LFM2.5 1.2B', '1.2B', 697),
   'lfm2.5-1.2b-thinking': llm('LiquidAI/LFM2.5-1.2B-Thinking-GGUF', 'LFM2.5-1.2B-Thinking-Q4_K_M.gguf', 'LFM2.5 1.2B Thinking', '1.2B', 697),
   'lfm2.5-vl-1.6b': vlm('LiquidAI/LFM2.5-VL-1.6B-GGUF', 'LFM2.5-VL-1.6B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-1.6b-F16.gguf', 'LFM2.5 VL 1.6B', '1.6B', 1585),
+  // The 3B projector filename capitalizes the B (`-3B-`) where the 1.6B one does
+  // not (`-1.6b-`). That is upstream's spelling, not a typo to normalize.
+  'lfm2.5-vl-3b': vlm('LiquidAI/LFM2.5-VL-3B-GGUF', 'LFM2.5-VL-3B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-3B-F16.gguf', 'LFM2.5 VL 3B', '3B', 2528, true),
 
   // ---- LFM2.5 on the Hexagon NPU (QHexRT) ----
   // Same weights family as the GGUF rows above, compiled to QNN context binaries.
