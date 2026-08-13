@@ -84,6 +84,10 @@ export const LICENSES = {
   apache2: { name: 'Apache 2.0', url: 'https://www.apache.org/licenses/LICENSE-2.0' },
   mit: { name: 'MIT', url: 'https://opensource.org/license/mit' },
   gemma: { name: 'Gemma Terms of Use', url: 'https://ai.google.dev/gemma/terms' },
+  // Every LiquidAI LFM2.5 repo declares `license: other` + `license_name: lfm1.0`
+  // and ships the full text as a LICENSE file. Apache-based, but not Apache: it
+  // adds a commercial-revenue threshold, so it must not be labelled Apache 2.0.
+  lfm1: { name: 'LFM Open License v1.0', url: 'https://www.liquid.ai/lfm-license' },
   llama32: {
     name: 'Llama 3.2 Community License',
     url: 'https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE',
@@ -179,8 +183,9 @@ function npu(
   label: string,
   params: string,
   sizeMB: number,
+  license: LicenseKey = 'apache2',
 ): CatalogEntry {
-  const l = LICENSES.apache2;
+  const l = LICENSES[license];
   const files = [manifest, ...weights].map((name) => ({
     url: `${HF}/${repo}/resolve/main/${arch}/${name}`,
     as: name,
@@ -235,13 +240,13 @@ export const CATALOG: Catalog = {
 
   // ---- LFM2.5 (Liquid AI) — chat, a reasoning variant that emits <think>…</think>
   //      (the app splits it out), and vision ----
-  'lfm2.5-230m': llm('LiquidAI/LFM2.5-230M-GGUF', 'LFM2.5-230M-Q4_K_M.gguf', 'LFM2.5 230M', '230M', 146),
-  'lfm2.5-1.2b': llm('LiquidAI/LFM2.5-1.2B-Instruct-GGUF', 'LFM2.5-1.2B-Instruct-Q4_K_M.gguf', 'LFM2.5 1.2B', '1.2B', 697),
-  'lfm2.5-1.2b-thinking': llm('LiquidAI/LFM2.5-1.2B-Thinking-GGUF', 'LFM2.5-1.2B-Thinking-Q4_K_M.gguf', 'LFM2.5 1.2B Thinking', '1.2B', 697),
-  'lfm2.5-vl-1.6b': vlm('LiquidAI/LFM2.5-VL-1.6B-GGUF', 'LFM2.5-VL-1.6B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-1.6b-F16.gguf', 'LFM2.5 VL 1.6B', '1.6B', 1585),
+  'lfm2.5-230m': llm('LiquidAI/LFM2.5-230M-GGUF', 'LFM2.5-230M-Q4_K_M.gguf', 'LFM2.5 230M', '230M', 146, false, 'lfm1'),
+  'lfm2.5-1.2b': llm('LiquidAI/LFM2.5-1.2B-Instruct-GGUF', 'LFM2.5-1.2B-Instruct-Q4_K_M.gguf', 'LFM2.5 1.2B', '1.2B', 697, false, 'lfm1'),
+  'lfm2.5-1.2b-thinking': llm('LiquidAI/LFM2.5-1.2B-Thinking-GGUF', 'LFM2.5-1.2B-Thinking-Q4_K_M.gguf', 'LFM2.5 1.2B Thinking', '1.2B', 697, false, 'lfm1'),
+  'lfm2.5-vl-1.6b': vlm('LiquidAI/LFM2.5-VL-1.6B-GGUF', 'LFM2.5-VL-1.6B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-1.6b-F16.gguf', 'LFM2.5 VL 1.6B', '1.6B', 1585, false, 'lfm1'),
   // The 3B projector filename capitalizes the B (`-3B-`) where the 1.6B one does
   // not (`-1.6b-`). That is upstream's spelling, not a typo to normalize.
-  'lfm2.5-vl-3b': vlm('LiquidAI/LFM2.5-VL-3B-GGUF', 'LFM2.5-VL-3B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-3B-F16.gguf', 'LFM2.5 VL 3B', '3B', 2528, true),
+  'lfm2.5-vl-3b': vlm('LiquidAI/LFM2.5-VL-3B-GGUF', 'LFM2.5-VL-3B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-3B-F16.gguf', 'LFM2.5 VL 3B', '3B', 2528, true, 'lfm1'),
 
   // ---- LFM2.5 on the Hexagon NPU (QHexRT) ----
   // Same weights family as the GGUF rows above, compiled to QNN context binaries.
@@ -252,12 +257,12 @@ export const CATALOG: Catalog = {
   'lfm2.5-350m-npu': npu(
     'runanywhere/lfm2_5_350m_HNPU', 'v81', 'lfm2-5-350m-2048.json',
     ['lfm_pf_f16.bin', 'lfm_dec_f16.bin', 'lfm_lmh_f16.bin', 'lfm_embed_f16.bin', 'tokenizer.json'],
-    'LFM2.5 350M (NPU)', '350M', 1430,
+    'LFM2.5 350M (NPU)', '350M', 1430, 'lfm1',
   ),
   'lfm2.5-230m-npu': npu(
     'runanywhere/lfm2_5_230m_HNPU', 'v81', 'lfm2-5-230m.json',
     ['lfm230_pf_512_w8.bin', 'lfm230_dec_512_w8.bin', 'lfm230_lmh_w8.bin', 'lfm_embed_f16.bin', 'tokenizer.json'],
-    'LFM2.5 230M (NPU)', '230M', 539,
+    'LFM2.5 230M (NPU)', '230M', 539, 'lfm1',
   ),
   // A REASONING bundle: it opens <think> itself and answers only after closing
   // it, so nothing is emitted for the first few seconds of a request (measured:
@@ -268,7 +273,7 @@ export const CATALOG: Catalog = {
   'lfm2.5-1.2b-thinking-npu': npu(
     'runanywhere/lfm2_5_1_2b_thinking_HNPU', 'v81', 'lfm2-5-1.2b-thinking.json',
     ['lfm2512bthinking_decode_w8.bin', 'lfm2512bthinking_lmhead_w8.bin', 'lfm2512bthinking_embed_f16.bin', 'tokenizer.json'],
-    'LFM2.5 1.2B Thinking (NPU)', '1.2B', 1454,
+    'LFM2.5 1.2B Thinking (NPU)', '1.2B', 1454, 'lfm1',
   ),
 
   // ---- Gemma 4 (Google) — weights carry use restrictions, see LICENSES.gemma ----
