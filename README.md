@@ -11,28 +11,41 @@ consumed straight from npm.
 
 The SDK is consumed **entirely from the npm registry**. There are no `file:`
 links and no path aliases into any SDK checkout, so the app builds standalone
-anywhere the folder is copied. The native prebuilds ship inside the
-`@runanywhere/electron` package (`node_modules/@runanywhere/electron/prebuilds/`) —
-nothing is built from source, and `npm ci` is the only staging step.
+anywhere the folder is copied. Every package that has a published native build
+ships it inside itself
+(`node_modules/@runanywhere/<pkg>/prebuilds/<platform>-<arch>/`): the core addon
+plus shared commons in `@runanywhere/electron`, and one thin plugin carrier plus
+its engine payload in each backend package. `@runanywhere/electron-qhexrt` is the
+one exception and ships no `prebuilds/` directory at all, on any platform; see
+the note under the dependency block. Nothing is built from source, and `npm ci`
+is the only staging step.
 
 ```jsonc
 // package.json — the actual, current declarations
 "dependencies": {
-  "@runanywhere/electron":          "^0.20.17",
-  "@runanywhere/electron-llamacpp": "^0.20.17",
-  "@runanywhere/electron-onnx":     "^0.20.17",
+  "@runanywhere/electron":          "^0.20.18",
+  "@runanywhere/electron-llamacpp": "^0.20.18",
+  "@runanywhere/electron-onnx":     "^0.20.18",
   "@runanywhere/electron-qhexrt":   "^0.20.17",
-  "@runanywhere/electron-sherpa":   "^0.20.17",
-  "@runanywhere/proto-ts":          "^0.20.17"
+  "@runanywhere/electron-sherpa":   "^0.20.18",
+  "@runanywhere/proto-ts":          "^0.20.18"
 }
 ```
+
+`@runanywhere/electron-qhexrt` stays a minor behind on purpose: 0.20.17 is its
+latest published version, and it is npm-deprecated because no Hexagon NPU
+prebuild exists for any platform yet. Its tarball is JS, types and metadata only
+(7 files, no `prebuilds/`), so `QHexRT.register()` records a path that does not
+exist, the SDK's existence filter drops it from `RUNANYWHERE_PLUGIN_PATHS` before
+the utility host is forked, and it never loads. That is why it can be declared
+unconditionally and still never appear in `capabilities().backends`.
 
 | Package | Role |
 |---|---|
 | `@runanywhere/electron` | Core SDK — main-process host, preload (`window.runanywhere`), native prebuilds |
 | `@runanywhere/electron-llamacpp` | LlamaCPP backend — LLM, VLM |
 | `@runanywhere/electron-onnx` | ONNX backend — embeddings, segmentation |
-| `@runanywhere/electron-qhexrt` | QHexRT backend — Qualcomm Hexagon NPU (no-ops where there is no prebuild) |
+| `@runanywhere/electron-qhexrt` | QHexRT backend — Qualcomm Hexagon NPU (ships no prebuild on any platform today, so it never loads) |
 | `@runanywhere/electron-sherpa` | Sherpa backend — STT, TTS, VAD |
 | `@runanywhere/proto-ts` | Generated protobuf types |
 
@@ -135,9 +148,11 @@ npm run package:mac    # dmg + zip (arm64)
 npm run package:win    # nsis (x64 + arm64)
 ```
 
-Native artifacts under `node_modules/@runanywhere/electron/prebuilds/` (and any
-future `.node` / `.dylib` / `.dll` / `.so` / `plugins/`) are `asarUnpack`ed — they
-cannot load from inside `app.asar`. They arrive with the published package, so
-`npm ci` is all the staging there is.
+Native artifacts under every `node_modules/@runanywhere/*/prebuilds/` are
+`asarUnpack`ed, because they cannot load from inside `app.asar`. `electron-builder.yml`
+unpacks them by extension (`.node` / `.dylib` / `.dll` / `.so`), so the core addon
+and each backend's plugin carrier are covered by the same rule rather than by a
+per-package path. They arrive with the published packages, so `npm ci` is all the
+staging there is.
 
 Publishing / code signing is not wired yet; local packages are unsigned.
