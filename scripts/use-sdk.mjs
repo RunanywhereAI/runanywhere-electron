@@ -10,9 +10,12 @@
  * the installed @runanywhere/* packages, because those are pure JS published in
  * lockstep with the natives — the thing worth validating locally is the binary.
  *
- * The published packages ship prebuilds/darwin-arm64 only, so on Windows and
- * Linux `sdk:remote` legitimately leaves the app with no natives at all. That
- * is the packaging gap, reported honestly rather than hidden.
+ * As of 0.20.21 the published packages carry darwin-arm64, win32-x64
+ * (llamacpp/onnx/sherpa) and win32-arm64 (qhexrt). `local` therefore OVERWRITES
+ * a real published payload rather than filling an empty directory, so it is
+ * moved aside first and restored by `remote` — see stashPublished().
+ * Linux still ships no prebuild, where `remote` legitimately leaves the app
+ * with no natives at all.
  *
  * Layout mirrors the SDK's own resolver (@runanywhere/electron backend
  * plugin-registry): prebuilds/<platform>-<arch>/ holding runanywhere_native.node
@@ -190,6 +193,68 @@ function targetDir(id) {
   return path.join(packageDir(id), 'prebuilds', PLATFORM_ARCH);
 }
 
+/** Where a package's published payload waits while a local build is overlaid. */
+function stashDir(id) {
+  return path.join(packageDir(id), 'prebuilds', `.npm-${PLATFORM_ARCH}`);
+}
+
+/**
+ * What the last `local` run did: which packages it overlaid, and from where.
+ *
+ * `remote` acts on this list rather than on whatever happens to have a stash
+ * directory. The difference matters when a package was reinstalled while the
+ * overlay was in place — its `prebuilds/<platform>-<arch>/` is then a fresh
+ * published payload that this script never touched, and inferring provenance
+ * from the filesystem would throw it away and put a stale stash in its place.
+ */
+function readOverlayState() {
+  if (!fs.existsSync(MODE_MARKER)) return { mode: 'remote', packages: [] };
+  const raw = fs.readFileSync(MODE_MARKER, 'utf8');
+  try {
+    const parsed = JSON.parse(raw);
+    return { mode: parsed.mode ?? 'remote', packages: parsed.packages ?? [] };
+  } catch {
+    // A marker written before this file recorded package ids: one line of mode,
+    // one of build root. Treat every package as a candidate, which is what that
+    // version assumed anyway.
+    return { mode: raw.split('\n')[0] || 'remote', packages: ['core', ...BACKENDS] };
+  }
+}
+
+function writeOverlayState(packages) {
+  fs.writeFileSync(
+    MODE_MARKER,
+    `${JSON.stringify({ mode: 'local', buildRoot: BUILD_ROOT, packages }, null, 2)}\n`,
+    'utf8'
+  );
+}
+
+/**
+ * Move the published payload aside before an overlay replaces it.
+ *
+ * Before 0.20.21 no Windows prebuild existed, so `remote` could simply delete
+ * the directory: everything in it had come from a local build. Now npm ships
+ * real natives there, and deleting them leaves the app with no engines and no
+ * hint that a reinstall is what fixes it. Stash once — a second `local` run
+ * must not overwrite the stash with the previous overlay.
+ */
+function stashPublished(id) {
+  const live = targetDir(id);
+  const stash = stashDir(id);
+  if (!fs.existsSync(live) || fs.existsSync(stash)) return;
+  fs.renameSync(live, stash);
+}
+
+/** Put the published payload back, discarding the overlay on top of it. */
+function restorePublished(id) {
+  const live = targetDir(id);
+  const stash = stashDir(id);
+  if (!fs.existsSync(stash)) return false;
+  fs.rmSync(live, { recursive: true, force: true });
+  fs.renameSync(stash, live);
+  return true;
+}
+
 function applyLocal() {
   if (!fs.existsSync(BUILD_ROOT)) {
     throw new Error(
@@ -206,12 +271,14 @@ function applyLocal() {
   }
 
   let staged = 0;
+  const overlaid = [];
   for (const [id, files] of stagingPlan()) {
     const dir = packageDir(id);
     if (!fs.existsSync(dir)) {
       console.log(`  skip  ${id} — @runanywhere package not installed`);
       continue;
     }
+    stashPublished(id);
     const out = targetDir(id);
     fs.rmSync(out, { recursive: true, force: true });
     fs.mkdirSync(out, { recursive: true });
@@ -219,14 +286,31 @@ function applyLocal() {
       fs.copyFileSync(file, path.join(out, path.basename(file)));
       staged += 1;
     }
+    overlaid.push(id);
     console.log(`  local ${id} <- ${files.length} file(s) in prebuilds/${PLATFORM_ARCH}`);
   }
-  fs.writeFileSync(MODE_MARKER, `local\n${BUILD_ROOT}\n`, 'utf8');
+  // Union with any earlier overlay: a run that stages fewer packages than the
+  // last one must not orphan the ones it no longer covers.
+  const previous = readOverlayState();
+  const recorded = [...new Set([...(previous.mode === 'local' ? previous.packages : []), ...overlaid])];
+  writeOverlayState(recorded);
   console.log(`\nlocal SDK natives staged (${staged} files) from ${BUILD_ROOT}`);
 }
 
 function applyRemote() {
-  for (const id of ['core', ...BACKENDS]) {
+  const { mode, packages } = readOverlayState();
+  if (mode !== 'local') {
+    console.log('  nothing overlaid — already remote');
+    fs.rmSync(MODE_MARKER, { force: true });
+    return;
+  }
+  for (const id of packages) {
+    if (restorePublished(id)) {
+      console.log(`  remote ${id} — restored the published prebuilds/${PLATFORM_ARCH}`);
+      continue;
+    }
+    // No stash means this package had no published payload when it was
+    // overlaid, so the directory is ours and removing it is the whole undo.
     const out = targetDir(id);
     if (fs.existsSync(out)) {
       fs.rmSync(out, { recursive: true, force: true });
@@ -238,14 +322,13 @@ function applyRemote() {
 }
 
 function reportStatus() {
-  const marker = fs.existsSync(MODE_MARKER)
-    ? fs.readFileSync(MODE_MARKER, 'utf8').split('\n')[0]
-    : 'remote';
-  console.log(`mode: ${marker}   platform: ${PLATFORM_ARCH}`);
+  const { mode } = readOverlayState();
+  console.log(`mode: ${mode}   platform: ${PLATFORM_ARCH}`);
   for (const id of ['core', ...BACKENDS]) {
     const out = targetDir(id);
     const files = fs.existsSync(out) ? fs.readdirSync(out) : [];
-    console.log(`  ${id.padEnd(9)} ${files.length ? files.join(', ') : '(none)'}`);
+    const stashed = fs.existsSync(stashDir(id)) ? '  [published payload stashed]' : '';
+    console.log(`  ${id.padEnd(9)} ${files.length ? files.join(', ') : '(none)'}${stashed}`);
   }
 }
 
