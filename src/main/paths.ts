@@ -36,6 +36,31 @@ function asarUnpacked(filePath: string): string {
   );
 }
 
+/**
+ * Where a backend package's loadable plugin really lives.
+ *
+ * `register()` defaults to `<packageRoot>/prebuilds/<platform>-<arch>/...`
+ * computed from the SDK's own `__dirname`, which inside a packaged app points
+ * INTO `app.asar` — a virtual path with no file behind it. electron-builder put
+ * the real bytes in `app.asar.unpacked` (see `asarUnpack` in
+ * electron-builder.yml), so the path has to be rewritten the same way
+ * `resolveNativePath` already rewrites the addon. Without this the packaged app
+ * loads the addon fine and then reports every backend unavailable with
+ * "the plugin library could not be loaded".
+ */
+export function resolvePluginPath(packageName: string, id: string): string {
+  const packageRoot = path.dirname(require.resolve(`${packageName}/package.json`));
+  const file =
+    process.platform === 'win32'
+      ? `runanywhere_${id}.dll`
+      : process.platform === 'darwin'
+        ? `librunanywhere_${id}.dylib`
+        : `librunanywhere_${id}.so`;
+  return asarUnpacked(
+    path.join(packageRoot, 'prebuilds', `${process.platform}-${process.arch}`, file),
+  );
+}
+
 export const APP_ROOT = appRoot;
 export const SDK_ROOT = resolveSdkRoot();
 export const PREBUILDS = path.join(SDK_ROOT, 'prebuilds');
