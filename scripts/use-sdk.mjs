@@ -10,9 +10,12 @@
  * the installed @runanywhere/* packages, because those are pure JS published in
  * lockstep with the natives — the thing worth validating locally is the binary.
  *
- * The published packages ship prebuilds/darwin-arm64 only, so on Windows and
- * Linux `sdk:remote` legitimately leaves the app with no natives at all. That
- * is the packaging gap, reported honestly rather than hidden.
+ * As of 0.20.21 the published packages carry darwin-arm64, win32-x64
+ * (llamacpp/onnx/sherpa) and win32-arm64 (qhexrt). `local` therefore OVERWRITES
+ * a real published payload rather than filling an empty directory, so it is
+ * moved aside first and restored by `remote` — see stashPublished().
+ * Linux still ships no prebuild, where `remote` legitimately leaves the app
+ * with no natives at all.
  *
  * Layout mirrors the SDK's own resolver (@runanywhere/electron backend
  * plugin-registry): prebuilds/<platform>-<arch>/ holding runanywhere_native.node
@@ -190,6 +193,37 @@ function targetDir(id) {
   return path.join(packageDir(id), 'prebuilds', PLATFORM_ARCH);
 }
 
+/** Where a package's published payload waits while a local build is overlaid. */
+function stashDir(id) {
+  return path.join(packageDir(id), 'prebuilds', `.npm-${PLATFORM_ARCH}`);
+}
+
+/**
+ * Move the published payload aside before an overlay replaces it.
+ *
+ * Before 0.20.21 no Windows prebuild existed, so `remote` could simply delete
+ * the directory: everything in it had come from a local build. Now npm ships
+ * real natives there, and deleting them leaves the app with no engines and no
+ * hint that a reinstall is what fixes it. Stash once — a second `local` run
+ * must not overwrite the stash with the previous overlay.
+ */
+function stashPublished(id) {
+  const live = targetDir(id);
+  const stash = stashDir(id);
+  if (!fs.existsSync(live) || fs.existsSync(stash)) return;
+  fs.renameSync(live, stash);
+}
+
+/** Put the published payload back, discarding the overlay on top of it. */
+function restorePublished(id) {
+  const live = targetDir(id);
+  const stash = stashDir(id);
+  if (!fs.existsSync(stash)) return false;
+  fs.rmSync(live, { recursive: true, force: true });
+  fs.renameSync(stash, live);
+  return true;
+}
+
 function applyLocal() {
   if (!fs.existsSync(BUILD_ROOT)) {
     throw new Error(
@@ -212,6 +246,7 @@ function applyLocal() {
       console.log(`  skip  ${id} — @runanywhere package not installed`);
       continue;
     }
+    stashPublished(id);
     const out = targetDir(id);
     fs.rmSync(out, { recursive: true, force: true });
     fs.mkdirSync(out, { recursive: true });
@@ -227,6 +262,10 @@ function applyLocal() {
 
 function applyRemote() {
   for (const id of ['core', ...BACKENDS]) {
+    if (restorePublished(id)) {
+      console.log(`  remote ${id} — restored the published prebuilds/${PLATFORM_ARCH}`);
+      continue;
+    }
     const out = targetDir(id);
     if (fs.existsSync(out)) {
       fs.rmSync(out, { recursive: true, force: true });
@@ -245,7 +284,8 @@ function reportStatus() {
   for (const id of ['core', ...BACKENDS]) {
     const out = targetDir(id);
     const files = fs.existsSync(out) ? fs.readdirSync(out) : [];
-    console.log(`  ${id.padEnd(9)} ${files.length ? files.join(', ') : '(none)'}`);
+    const stashed = fs.existsSync(stashDir(id)) ? '  [published payload stashed]' : '';
+    console.log(`  ${id.padEnd(9)} ${files.length ? files.join(', ') : '(none)'}${stashed}`);
   }
 }
 

@@ -30,13 +30,20 @@ asar: true
 # Unpack every loadable native artifact under the Electron SDK — and by
 # extension glob so a future thin-addon + N dylibs/plugins layout still works
 # without another packaging change.
+#
+# The whole prebuilds tree is unpacked per package, not just files matching a
+# native extension. QHexRT's QAIRT runtime includes `libqnnhtpv81.cat`, and the
+# Hexagon skel fails signature verification unless the catalog sits in the SAME
+# directory as the `.so` and stub `.dll` beside it — an extension glob alone
+# would unpack the siblings and leave the `.cat` inside app.asar, which reads at
+# runtime as a corrupt model rather than as a packaging fault.
 asarUnpack:
   - '**/*.node'
   - '**/*.dylib'
   - '**/*.dll'
   - '**/*.so'
   - '**/*.so.*'
-  - '**/node_modules/@runanywhere/electron/prebuilds/**'
+  - '**/node_modules/@runanywhere/*/prebuilds/**'
   - '**/node_modules/@runanywhere/electron/**/plugins/**'
 
 mac:

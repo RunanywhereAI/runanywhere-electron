@@ -15,37 +15,53 @@ anywhere the folder is copied. Every package that has a published native build
 ships it inside itself
 (`node_modules/@runanywhere/<pkg>/prebuilds/<platform>-<arch>/`): the core addon
 plus shared commons in `@runanywhere/electron`, and one thin plugin carrier plus
-its engine payload in each backend package. `@runanywhere/electron-qhexrt` is the
-one exception and ships no `prebuilds/` directory at all, on any platform; see
-the note under the dependency block. Nothing is built from source, and `npm ci`
-is the only staging step.
+its engine payload in each backend package. Nothing is built from source, and
+`npm ci` is the only staging step.
 
 ```jsonc
 // package.json — the actual, current declarations
 "dependencies": {
-  "@runanywhere/electron":          "^0.20.18",
-  "@runanywhere/electron-llamacpp": "^0.20.18",
-  "@runanywhere/electron-onnx":     "^0.20.18",
-  "@runanywhere/electron-qhexrt":   "^0.20.17",
-  "@runanywhere/electron-sherpa":   "^0.20.18",
-  "@runanywhere/proto-ts":          "^0.20.18"
+  "@runanywhere/electron":          "^0.20.21",
+  "@runanywhere/electron-llamacpp": "^0.20.21",
+  "@runanywhere/electron-onnx":     "^0.20.21",
+  "@runanywhere/electron-qhexrt":   "^0.20.21",
+  "@runanywhere/electron-sherpa":   "^0.20.21",
+  "@runanywhere/proto-ts":          "^0.20.21"
 }
 ```
 
-`@runanywhere/electron-qhexrt` stays a minor behind on purpose: 0.20.17 is its
-latest published version, and it is npm-deprecated because no Hexagon NPU
-prebuild exists for any platform yet. Its tarball is JS, types and metadata only
-(7 files, no `prebuilds/`), so `QHexRT.register()` records a path that does not
-exist, the SDK's existence filter drops it from `RUNANYWHERE_PLUGIN_PATHS` before
-the utility host is forked, and it never loads. That is why it can be declared
-unconditionally and still never appear in `capabilities().backends`.
+### Which platform gets which engines
+
+`0.20.21` is the first release carrying Windows natives, and the two Windows
+lanes are mutually exclusive by construction — QAIRT ships no Hexagon stub for
+x86_64, and neither ggml nor ONNX Runtime builds for win-arm64.
+
+| platform-arch | engines that load |
+|---|---|
+| `darwin-arm64` | llamacpp, onnx, sherpa |
+| `win32-x64` | llamacpp, onnx, sherpa |
+| `win32-arm64` | qhexrt only (Hexagon NPU) |
+| linux | none published yet |
+
+Every backend package is declared unconditionally and that stays safe: a package
+with no payload for the running platform records a path that does not exist, the
+SDK's existence filter drops it from `RUNANYWHERE_PLUGIN_PATHS` before the
+utility host is forked, and it never loads. So `@runanywhere/electron-qhexrt` is
+inert on macOS and on Windows x64, and `-llamacpp` / `-onnx` / `-sherpa` are
+inert on Windows ARM64. Only what a platform can actually run appears in
+`capabilities().backends`.
+
+`@runanywhere/electron-qhexrt` additionally bundles the QAIRT/QNN runtime the
+Hexagon NPU loads (four DLLs, the v81 skel, and `libqnnhtpv81.cat`) flat in the
+same directory, because Windows has no `ADSP_LIBRARY_PATH` and the loader
+resolves the stub's dependencies through the DLL's own folder.
 
 | Package | Role |
 |---|---|
 | `@runanywhere/electron` | Core SDK — main-process host, preload (`window.runanywhere`), native prebuilds |
 | `@runanywhere/electron-llamacpp` | LlamaCPP backend — LLM, VLM |
 | `@runanywhere/electron-onnx` | ONNX backend — embeddings, segmentation |
-| `@runanywhere/electron-qhexrt` | QHexRT backend — Qualcomm Hexagon NPU (ships no prebuild on any platform today, so it never loads) |
+| `@runanywhere/electron-qhexrt` | QHexRT backend — Qualcomm Hexagon NPU, `win32-arm64` only (Snapdragon X / X2 Elite); inert elsewhere |
 | `@runanywhere/electron-sherpa` | Sherpa backend — STT, TTS, VAD |
 | `@runanywhere/proto-ts` | Generated protobuf types |
 
@@ -150,9 +166,11 @@ npm run package:win    # nsis (x64 + arm64)
 
 Native artifacts under every `node_modules/@runanywhere/*/prebuilds/` are
 `asarUnpack`ed, because they cannot load from inside `app.asar`. `electron-builder.yml`
-unpacks them by extension (`.node` / `.dylib` / `.dll` / `.so`), so the core addon
-and each backend's plugin carrier are covered by the same rule rather than by a
-per-package path. They arrive with the published packages, so `npm ci` is all the
-staging there is.
+unpacks them by extension (`.node` / `.dylib` / `.dll` / `.so`) **and** by the whole
+`@runanywhere/*/prebuilds/**` tree, so the core addon, each backend's plugin carrier
+and QHexRT's `libqnnhtpv81.cat` are all covered — the catalog is not a loadable
+image but the Hexagon skel beside it fails signature verification without it, and
+that failure names a corrupt model rather than the packaging. They arrive with the
+published packages, so `npm ci` is all the staging there is.
 
 Publishing / code signing is not wired yet; local packages are unsigned.
