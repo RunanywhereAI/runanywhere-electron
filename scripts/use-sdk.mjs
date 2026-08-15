@@ -199,6 +199,37 @@ function stashDir(id) {
 }
 
 /**
+ * What the last `local` run did: which packages it overlaid, and from where.
+ *
+ * `remote` acts on this list rather than on whatever happens to have a stash
+ * directory. The difference matters when a package was reinstalled while the
+ * overlay was in place — its `prebuilds/<platform>-<arch>/` is then a fresh
+ * published payload that this script never touched, and inferring provenance
+ * from the filesystem would throw it away and put a stale stash in its place.
+ */
+function readOverlayState() {
+  if (!fs.existsSync(MODE_MARKER)) return { mode: 'remote', packages: [] };
+  const raw = fs.readFileSync(MODE_MARKER, 'utf8');
+  try {
+    const parsed = JSON.parse(raw);
+    return { mode: parsed.mode ?? 'remote', packages: parsed.packages ?? [] };
+  } catch {
+    // A marker written before this file recorded package ids: one line of mode,
+    // one of build root. Treat every package as a candidate, which is what that
+    // version assumed anyway.
+    return { mode: raw.split('\n')[0] || 'remote', packages: ['core', ...BACKENDS] };
+  }
+}
+
+function writeOverlayState(packages) {
+  fs.writeFileSync(
+    MODE_MARKER,
+    `${JSON.stringify({ mode: 'local', buildRoot: BUILD_ROOT, packages }, null, 2)}\n`,
+    'utf8'
+  );
+}
+
+/**
  * Move the published payload aside before an overlay replaces it.
  *
  * Before 0.20.21 no Windows prebuild existed, so `remote` could simply delete
@@ -240,6 +271,7 @@ function applyLocal() {
   }
 
   let staged = 0;
+  const overlaid = [];
   for (const [id, files] of stagingPlan()) {
     const dir = packageDir(id);
     if (!fs.existsSync(dir)) {
@@ -254,18 +286,31 @@ function applyLocal() {
       fs.copyFileSync(file, path.join(out, path.basename(file)));
       staged += 1;
     }
+    overlaid.push(id);
     console.log(`  local ${id} <- ${files.length} file(s) in prebuilds/${PLATFORM_ARCH}`);
   }
-  fs.writeFileSync(MODE_MARKER, `local\n${BUILD_ROOT}\n`, 'utf8');
+  // Union with any earlier overlay: a run that stages fewer packages than the
+  // last one must not orphan the ones it no longer covers.
+  const previous = readOverlayState();
+  const recorded = [...new Set([...(previous.mode === 'local' ? previous.packages : []), ...overlaid])];
+  writeOverlayState(recorded);
   console.log(`\nlocal SDK natives staged (${staged} files) from ${BUILD_ROOT}`);
 }
 
 function applyRemote() {
-  for (const id of ['core', ...BACKENDS]) {
+  const { mode, packages } = readOverlayState();
+  if (mode !== 'local') {
+    console.log('  nothing overlaid — already remote');
+    fs.rmSync(MODE_MARKER, { force: true });
+    return;
+  }
+  for (const id of packages) {
     if (restorePublished(id)) {
       console.log(`  remote ${id} — restored the published prebuilds/${PLATFORM_ARCH}`);
       continue;
     }
+    // No stash means this package had no published payload when it was
+    // overlaid, so the directory is ours and removing it is the whole undo.
     const out = targetDir(id);
     if (fs.existsSync(out)) {
       fs.rmSync(out, { recursive: true, force: true });
@@ -277,10 +322,8 @@ function applyRemote() {
 }
 
 function reportStatus() {
-  const marker = fs.existsSync(MODE_MARKER)
-    ? fs.readFileSync(MODE_MARKER, 'utf8').split('\n')[0]
-    : 'remote';
-  console.log(`mode: ${marker}   platform: ${PLATFORM_ARCH}`);
+  const { mode } = readOverlayState();
+  console.log(`mode: ${mode}   platform: ${PLATFORM_ARCH}`);
   for (const id of ['core', ...BACKENDS]) {
     const out = targetDir(id);
     const files = fs.existsSync(out) ? fs.readdirSync(out) : [];
