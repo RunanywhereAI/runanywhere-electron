@@ -41,6 +41,7 @@ import {
   IS_SELFTEST,
   isGpuBuild,
   resolveNativePath,
+  resolvePluginPath,
   SDK_ROOT,
 } from './paths';
 import { installNavigationGuards, installPermissionHandlers } from './security';
@@ -69,10 +70,13 @@ if (IS_E2E) {
 // for this platform is dropped from the fork env rather than failing the app, so
 // the NPU package can be declared unconditionally and simply not appear in
 // capabilities() on a machine that has no Hexagon.
-LlamaCPP.register();
-ONNX.register();
-Sherpa.register();
-QHexRT.register();
+// The default path each register() computes points inside app.asar once the app
+// is packaged; resolvePluginPath rewrites it to app.asar.unpacked, where
+// electron-builder actually put the binaries.
+LlamaCPP.register({ pluginPath: resolvePluginPath('@runanywhere/electron-llamacpp', 'llamacpp') });
+ONNX.register({ pluginPath: resolvePluginPath('@runanywhere/electron-onnx', 'onnx') });
+Sherpa.register({ pluginPath: resolvePluginPath('@runanywhere/electron-sherpa', 'sherpa') });
+QHexRT.register({ pluginPath: resolvePluginPath('@runanywhere/electron-qhexrt', 'qhexrt') });
 // Resolve the addon at startup but keep the failure readable: an uncaught throw
 // here would close the app with no window and no message.
 let nativePath: string | null = null;

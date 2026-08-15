@@ -28,7 +28,14 @@ test.beforeAll(async () => {
   // discover a developer's models) but wrong here: this suite has to see the
   // real model store, and the NPU bundles cannot be re-downloaded because their
   // repos are private.
-  app = await electron.launch({ args: [appRoot], env: { ...process.env } });
+  // RA_PACKAGED_EXE runs the suite against a built installer's output instead of
+  // the dev tree. Packaging is its own failure surface — asarUnpack decides
+  // whether the QAIRT catalog reaches disk at all, and a missing
+  // libqnnhtpv81.cat surfaces as an opaque model error, not a packaging one.
+  const packagedExe = process.env.RA_PACKAGED_EXE;
+  app = packagedExe
+    ? await electron.launch({ executablePath: packagedExe, env: { ...process.env } })
+    : await electron.launch({ args: [appRoot], env: { ...process.env } });
   page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
   await page.waitForFunction(() => window.runanywhere !== undefined, null, { timeout: 60_000 });
