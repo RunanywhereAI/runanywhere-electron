@@ -50,13 +50,14 @@ test.beforeAll(async () => {
   // was never going to open. Electron resolves `main` from package.json, so a
   // tree that has not been built yet launches *something* and then hangs in
   // `waitForFunction`, which reads as a broken SDK rather than a missing build.
+  // A fresh clone or a fresh `npm ci` both leave you here: neither produces out/.
   if (!packagedExe) {
     const mainEntry = path.join(appRoot, 'out', 'main', 'index.cjs');
     if (!fs.existsSync(mainEntry)) {
       throw new Error(
         `${mainEntry} does not exist — the app has not been built.\n` +
-          'Run `npm start` (or `npm run build`) before this suite. `npm ci` wipes ' +
-          'out/ along with node_modules.'
+          'Run `npm start` (or `npm run build`) before this suite. Nothing in ' +
+          '`npm ci` produces out/; it only reinstalls node_modules.'
       );
     }
   }
