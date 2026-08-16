@@ -96,6 +96,12 @@ export const LICENSES = {
     name: 'NVIDIA Open Model License',
     url: 'https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/',
   },
+  // BigScience Open RAIL-M: open, but with use-based restrictions (unlike a
+  // plain permissive license), so it must not be folded into `apache2`/`mit`.
+  openrailM: {
+    name: 'OpenRAIL-M',
+    url: 'https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE',
+  },
 } as const satisfies Record<string, LicenseInfo>;
 
 type LicenseKey = keyof typeof LICENSES;
@@ -226,9 +232,10 @@ function piper(voice: string, label: string, sizeMB: number): CatalogEntry {
 }
 
 // Every URL below was HTTP-verified (200 + "GGUF" magic bytes) on 2026-07-27,
-// the LFM2.5 230M row on 2026-08-05, the LFM2.5 VL 3B row on 2026-08-13, and the
+// the LFM2.5 230M row on 2026-08-05, the LFM2.5 VL 3B row on 2026-08-13, the
 // Gemma 4 12B/26B-A4B/31B and Qwen3.6/Qwen3.8 rows against the HF API on
-// 2026-08-15.
+// 2026-08-15, and the Muse Glimmer 30B, Granite 4.1, Nemotron 3 Nano Omni, and
+// Supertonic 3 rows (also 2026-08-15, same pass).
 // Sizes are the real content-length, not estimates.
 export const CATALOG: Catalog = {
   // ---- Qwen3.5 (chat + vision; one repo ships both the model and its projector) ----
@@ -296,14 +303,36 @@ export const CATALOG: Catalog = {
   // ---- Llama (Meta) — Llama 3.2 Community License ----
   'llama-3.2-3b': llm('unsloth/Llama-3.2-3B-Instruct-GGUF', 'Llama-3.2-3B-Instruct-Q4_K_M.gguf', 'Llama 3.2 3B', '3B', 1926, true, 'llama32', 'llama3'),
 
+  // ---- Muse Glimmer (Meta Superintelligence Labs) — Apache 2.0, VLM only ----
+  // Dense 30B agentic model with a dedicated perception (ViT) encoder — a real
+  // mmproj, not a text-only model dressed up as one. Distinct family from Llama
+  // above (different architecture, different Meta org), so it gets its own
+  // section rather than sitting under the Llama heading.
+  'muse-glimmer-30b': vlm('unsloth/Muse-Glimmer-30B-GGUF', 'Muse-Glimmer-30B-UD-Q4_K_XL.gguf', 'mmproj-Muse-Glimmer-30B-Q8_0.gguf', 'Muse Glimmer 30B', '30B', 17099, true),
+
   // ---- Ministral (Mistral AI) ----
   'ministral-3-3b': llm('mistralai/Ministral-3-3B-Instruct-2512-GGUF', 'Ministral-3-3B-Instruct-2512-Q4_K_M.gguf', 'Ministral 3 3B', '3B', 2048, true, 'apache2', 'mistral'),
+
+  // ---- Granite 4.1 (IBM) — Apache 2.0 ----
+  'granite-4.1-3b': llm('unsloth/granite-4.1-3b-GGUF', 'granite-4.1-3b-Q4_K_M.gguf', 'Granite 4.1 3B', '3B', 2002),
+  'granite-4.1-8b': llm('unsloth/granite-4.1-8b-GGUF', 'granite-4.1-8b-Q4_K_M.gguf', 'Granite 4.1 8B', '8B', 5100, true),
+  'granite-4.1-30b': llm('unsloth/granite-4.1-30b-GGUF', 'granite-4.1-30b-Q4_K_M.gguf', 'Granite 4.1 30B', '30B', 16680, true),
 
   // ---- Phi (Microsoft) ----
   'phi-4-mini': llm('unsloth/Phi-4-mini-instruct-GGUF', 'Phi-4-mini-instruct-Q4_K_M.gguf', 'Phi-4 mini', '3.8B', 2376, true),
 
   // ---- Nemotron (NVIDIA) — NVIDIA Open Model License ----
   'nemotron3-nano-4b': llm('nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF', 'NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf', 'Nemotron 3 Nano 4B', '4B', 2706, true, 'nvidiaOpen'),
+  // MoE (31B total / 3B active) reasoning model with a real image mmproj. The
+  // upstream model is marketed "Omni" (audio + video + image), but llama.cpp's
+  // mmproj here is image-only — the label deliberately says "Vision", not
+  // "Omni", so it does not overclaim what this backend can actually do.
+  'nemotron3-nano-omni-30b-a3b-reasoning': vlm(
+    'unsloth/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-GGUF',
+    'NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-UD-Q4_K_M.gguf',
+    'mmproj-F16.gguf',
+    'Nemotron 3 Nano 30B-A3B Vision (Reasoning)', '30B-A3B', 24294, true, 'nvidiaOpen',
+  ),
 
   // ---- GLM (Zhipu) — vision only ----
   'glm-4.6v-flash': vlm('ggml-org/GLM-4.6V-Flash-GGUF', 'GLM-4.6V-Flash-Q4_K_M.gguf', 'mmproj-GLM-4.6V-Flash-Q8_0.gguf', 'GLM-4.6V Flash', '9B', 7147, true),
@@ -330,6 +359,29 @@ export const CATALOG: Catalog = {
   'piper-lessac': piper('lessac', 'Piper · Lessac', 64),
   'piper-amy': piper('amy', 'Piper · Amy', 64),
   'piper-ryan': piper('ryan', 'Piper · Ryan', 64),
+
+  // ---- Text-to-speech (Supertonic 3 via sherpa-onnx) ----
+  // NOT the raw `Supertone/supertonic-3` HF repo: its files (per-voice JSON
+  // styles, a `unicode_indexer.json`) do not match what this app's packaged
+  // sherpa-onnx build actually loads (a single `voice.bin` covering every
+  // speaker and a `unicode_indexer.bin`). k2-fsa's own pre-converted int8
+  // archive below carries exactly those files, confirmed by extracting it.
+  'supertonic-3': {
+    type: 'tts',
+    files: [
+      {
+        url: `${K2}/tts-models/sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2`,
+        as: 'supertonic.tar.bz2',
+      },
+    ],
+    archive: true,
+    primary: 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11',
+    label: 'Supertonic 3',
+    params: '99M',
+    sizeMB: 123,
+    license: LICENSES.openrailM.name,
+    licenseUrl: LICENSES.openrailM.url,
+  },
 
   // ---- Speaker diarization (NVIDIA Sortformer, ONNX) ----
   sortformer: {
