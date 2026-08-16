@@ -21,19 +21,19 @@ its engine payload in each backend package. Nothing is built from source, and
 ```jsonc
 // package.json — the actual, current declarations
 "dependencies": {
-  "@runanywhere/electron":          "^0.20.21",
-  "@runanywhere/electron-llamacpp": "^0.20.21",
-  "@runanywhere/electron-onnx":     "^0.20.21",
-  "@runanywhere/electron-qhexrt":   "^0.20.21",
-  "@runanywhere/electron-sherpa":   "^0.20.21",
-  "@runanywhere/proto-ts":          "^0.20.21"
+  "@runanywhere/electron":          "^0.20.22",
+  "@runanywhere/electron-llamacpp": "^0.20.22",
+  "@runanywhere/electron-onnx":     "^0.20.22",
+  "@runanywhere/electron-qhexrt":   "^0.20.22",
+  "@runanywhere/electron-sherpa":   "^0.20.22",
+  "@runanywhere/proto-ts":          "^0.20.22"
 }
 ```
 
 ### Which platform gets which engines
 
-`0.20.21` is the first release carrying Windows natives, and the two Windows
-lanes are mutually exclusive by construction — QAIRT ships no Hexagon stub for
+`0.20.21` was the first release carrying Windows natives and `0.20.22` is the
+first where they all load; the two Windows lanes are mutually exclusive by construction — QAIRT ships no Hexagon stub for
 x86_64, and neither ggml nor ONNX Runtime builds for win-arm64.
 
 | platform-arch | engines that load |

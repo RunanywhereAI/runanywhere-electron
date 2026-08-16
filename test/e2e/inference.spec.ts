@@ -32,7 +32,35 @@ test.beforeAll(async () => {
   // the dev tree. Packaging is its own failure surface — asarUnpack decides
   // whether the QAIRT catalog reaches disk at all, and a missing
   // libqnnhtpv81.cat surfaces as an opaque model error, not a packaging one.
+  //
+  // Always say which binary is under test. The variable is read unconditionally,
+  // so one left in a shell silently redirects the whole suite: a stale ARM64
+  // packaged path made an x64 run report backends: ["QHEXRT"] and fail every
+  // engine with "Backend initialization failed", which reads exactly like a
+  // native regression rather than a mis-set environment.
   const packagedExe = process.env.RA_PACKAGED_EXE;
+  // eslint-disable-next-line no-console
+  console.log(
+    packagedExe
+      ? `launching PACKAGED app (RA_PACKAGED_EXE): ${packagedExe}`
+      : `launching DEV tree: ${appRoot}`
+  );
+
+  // Fail on the real cause instead of a 60s timeout waiting for a window that
+  // was never going to open. Electron resolves `main` from package.json, so a
+  // tree that has not been built yet launches *something* and then hangs in
+  // `waitForFunction`, which reads as a broken SDK rather than a missing build.
+  // A fresh clone or a fresh `npm ci` both leave you here: neither produces out/.
+  if (!packagedExe) {
+    const mainEntry = path.join(appRoot, 'out', 'main', 'index.cjs');
+    if (!fs.existsSync(mainEntry)) {
+      throw new Error(
+        `${mainEntry} does not exist — the app has not been built.\n` +
+          'Run `npm start` (or `npm run build`) before this suite. Nothing in ' +
+          '`npm ci` produces out/; it only reinstalls node_modules.'
+      );
+    }
+  }
   app = packagedExe
     ? await electron.launch({ executablePath: packagedExe, env: { ...process.env } })
     : await electron.launch({ args: [appRoot], env: { ...process.env } });
