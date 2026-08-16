@@ -16,7 +16,7 @@
     "start": "npm run build && electron .",
     "start:gpu": "npm run build && cross-env RA_GPU=1 electron .",
     "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.preload.json && tsc --noEmit -p tsconfig.renderer.json",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src scripts --max-warnings 0",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "sdk:local": "node scripts/use-sdk.mjs local",

@@ -54,9 +54,15 @@ export default async function afterPack(context) {
 
   const root = unpackedRoot(context);
   const scope = path.join(root, 'node_modules', '@runanywhere');
+  // Absent scope means no SDK native reached the package at all — the same
+  // silent-empty-build this hook exists to prevent, so it fails the same way
+  // rather than reporting success on an app that cannot load an engine.
   if (!fs.existsSync(scope)) {
-    console.log(`  after-pack: no @runanywhere payload under ${root}`);
-    return;
+    throw new Error(
+      `after-pack: no @runanywhere payload under ${root}.\n` +
+        'The SDK natives are asarUnpack-ed (see electron-builder.yml); an app ' +
+        'packaged without them launches and then finds no engines.'
+    );
   }
 
   let removedBytes = 0;
