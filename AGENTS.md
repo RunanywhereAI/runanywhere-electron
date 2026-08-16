@@ -1,62 +1,69 @@
 # AGENTS.md
 
-RunAnywhere AI — the Electron desktop app, built on the published
+RunAnywhere AI, the Electron desktop app, built on the published
 `@runanywhere/electron` SDK. `CLAUDE.md` is a symlink to this file.
 
-This repo is standalone: it consumes the SDK from the npm registry and has no checkout of, or path
-into, the `RunanywhereAI/runanywhere-sdks` monorepo. Where a rule below was inherited from a
-sibling app or from the SDK source, the reference is given as a monorepo path — read it as "in the
-`runanywhere-sdks` repo", not as a directory you will find here.
+This repo is standalone. It consumes the SDK from the npm registry and has no
+checkout of, or path into, the `RunanywhereAI/runanywhere-sdks` monorepo. Where a
+rule below cites a monorepo path, read it as "in the `runanywhere-sdks` repo",
+not as a directory you will find here. Since the 0.20.17 restructure that repo's
+layout is `core/`, `bindings/`, `rcli/`, `idl/`, `engines/`, `runtimes/`. The
+consumer apps for iOS, Android, and Web live in their own repositories
+(`runanywhere-ios`, `runanywhere-android`, `runanywhere-web`).
 
-Everything runs **on-device**: chat, reasoning, your own knowledge base, voice, and vision. No
-prompt, document, or audio leaves the machine.
-
----
+Everything runs on-device: chat, reasoning, retrieval over your own documents,
+voice, and vision. No prompt, document, or audio leaves the machine.
 
 ## The two rules that govern this app
 
 ### 1. TypeScript only, strictly typed
 
-**Every authored file in this app is TypeScript.** Main process, preload, renderer, shared
-modules, build config, tests. There is no JavaScript in source. The conventions are the same as the
-Web example app and the Electron SDK itself (`examples/web/RunAnywhereAI` and
-`sdk/runanywhere-electron` in the monorepo), so one habit set covers all three.
+Every authored file is TypeScript: main process, preload, renderer, shared
+modules, build config, tests. There is no JavaScript in `src/`. The conventions
+match the Electron SDK itself (`bindings/electron/AGENTS.md` in the monorepo) and
+the Web SDK, so one habit set covers all three.
 
-- **`strict: true`** in all three tsconfigs (`main`, `preload`, `renderer`), never weakened
+- `strict: true` in all three tsconfigs (main, preload, renderer), never weakened
   per-file.
-- **No `any`.** `@typescript-eslint/no-explicit-any` is an error. Use `unknown` and narrow.
-- **No `@ts-ignore` / `@ts-expect-error`** to silence a real error, and no non-null `!` to paper
-  over a maybe — narrow it or handle the absence.
-- **No raw JSON assumptions.** Anything read from disk, IPC, or the network is decoded into a
-  declared type first. The IPC contract lives in exactly one place — `src/shared/ipc-contract.ts`
-  — and both sides import it, so a channel can never drift between main and renderer.
-- **`consistent-type-imports`**, **`no-floating-promises`**, **`no-misused-promises`**, unused
-  vars are errors (`^_` to opt out), **`no-console`** (use the app logger, which routes to a
-  main-side file log).
-- **Proto types are the source of truth.** Model categories, error codes, stream event shapes,
-  audio formats, voice events — all come from the SDK's re-exported generated types. Never
-  hand-write an enum or string union the IDL already defines.
-- **Discriminated unions for state**, `readonly` for anything the caller must not mutate,
-  `as const` for literal tables, exhaustive `switch` with a `never` fallthrough.
-- **The renderer may not import `electron`.** Enforced by `no-restricted-imports`. Everything the
-  renderer needs arrives through the typed `window.runanywhere` / `window.appStore` bridges.
+- No `any`. `@typescript-eslint/no-explicit-any` is an error. Use `unknown` and
+  narrow.
+- No `@ts-ignore` or `@ts-expect-error` to silence a real error, and no non-null
+  `!` to paper over a maybe. Narrow it, or handle the absence.
+- No raw JSON assumptions. Anything read from disk, IPC, or the network is
+  decoded into a declared type first. The IPC contract lives in exactly one
+  place, `src/shared/ipc-contract.ts`, and both sides import it, so a channel
+  cannot drift between main and renderer.
+- `consistent-type-imports`, `no-floating-promises`, `no-misused-promises`,
+  unused vars are errors (`^_` to opt out), and `no-console` (use the app logger,
+  which routes to a main-side file log).
+- Proto types are the source of truth. Model categories, error codes, stream
+  event shapes, audio formats, voice events all come from the SDK's re-exported
+  generated types. Never hand-write an enum or string union the IDL defines.
+- Discriminated unions for state, `readonly` for anything the caller must not
+  mutate, `as const` for literal tables, exhaustive `switch` with a `never`
+  fallthrough.
+- The renderer may not import `electron`. Enforced by `no-restricted-imports`.
+  Everything the renderer needs arrives through the typed `window.runanywhere`
+  and `window.appStore` bridges.
 
-Output format differs by target even though the source language does not: main and preload emit
-**CommonJS** (Electron loads them that way), the renderer emits an **ESM** bundle, and the model
-catalog additionally emits a CommonJS `.js` on disk because the SDK's utility host `require()`s it
-by path.
+Output format differs by target even though the source language does not. Main
+and preload emit CommonJS (Electron loads them that way), the renderer emits an
+ESM bundle, and the model catalog additionally emits a CommonJS file on disk
+because the SDK's utility host `require()`s it by path.
 
 ```bash
 npm run typecheck   # all three projects
 npm run lint        # --max-warnings 0
 npm run build       # production bundle
-npm test            # unit + Electron smoke
+npm test            # vitest, test/unit/** only
 ```
+
+`npm run selftest` and `npm run test:e2e` are the heavier gates. See the README.
 
 ### 2. Almost no logic lives here
 
-Per the monorepo's root `AGENTS.md`, **logic belongs at the lowest layer that can serve all
-consumers**:
+Per the monorepo's root `AGENTS.md`, logic belongs at the lowest layer that can
+serve all consumers:
 
 ```text
 C++ commons  ->  owns ALL AI logic (inference, lifecycle, registry, download, RAG, routing)
@@ -64,12 +71,13 @@ C++ commons  ->  owns ALL AI logic (inference, lifecycle, registry, download, RA
    this app  ->  UI rendering, navigation, copy, thin SDK calls.  That is all.
 ```
 
-**iOS/macOS Swift is the canonical reference.** When behaviour is ambiguous, read the Swift app
-and copy its logic exactly, adapting syntax only. This app must be visually and functionally
-indistinguishable from the macOS target of the Swift example app
-(`examples/ios/RunAnywhereAI` in the monorepo).
+Swift is the canonical reference. When behaviour is ambiguous, read the
+`runanywhere-ios` app and copy its logic exactly, adapting syntax only. This app
+should be visually and functionally indistinguishable from that app's macOS
+target.
 
-If you find yourself writing any of the following, **stop — it is a bug one layer down**:
+If you find yourself writing any of the following, stop. It is a bug one layer
+down:
 
 - a multi-step bootstrap sequence before a feature works
 - a hardcoded model id, framework, or filesystem path pattern
@@ -78,45 +86,47 @@ If you find yourself writing any of the following, **stop — it is a bug one la
 - a re-implementation of something the SDK already does privately
 - a hand-maintained copy of an SDK-internal mapping
 
-Fix it in the SDK, or in commons if it is cross-platform, and let all six SDKs benefit — which
-means the fix lands in the `runanywhere-sdks` monorepo and reaches this app as a published version
-bump, not as a patch here.
+Fix it in the SDK, or in commons if it is cross-platform, so every SDK benefits.
+That means the fix lands in the `runanywhere-sdks` monorepo and reaches this app
+as a published version bump, not as a patch here.
 
-**What legitimately belongs here:** the model catalog table (every platform owns its own —
-`ModelCatalogBootstrap.swift`, `ModelCatalog.kt`, `model-catalog.ts`), copy strings and prompt
-suggestions, the local JSON store for conversations/settings, the demo tool implementations,
-cosine similarity in the embeddings demo, and pure presentation helpers like the segmentation
-mask painter.
-
----
+What legitimately belongs here: the model catalog table (every platform app owns
+its own, which is what lets two apps ship different model lists against one SDK
+build), copy strings and prompt suggestions, the local JSON store for
+conversations and settings, the demo tool implementations, cosine similarity in
+the embeddings demo, and pure presentation helpers like the segmentation mask
+painter.
 
 ## Design parity is a gate
 
-The app must be **indistinguishable** from the macOS SwiftUI app. Tokens were transcribed from the
-Swift design system (`examples/ios/RunAnywhereAI/RunAnywhereAI/Core/DesignSystem/` in the
-monorepo — the macOS branch of every `#if os(macOS)`) into `src/renderer/design/tokens.css`, which
-is the **one** theme file here — no component invents a value.
+Tokens were transcribed from the Swift design system (the macOS branch of every
+`#if os(macOS)` in `runanywhere-ios`) into `src/renderer/design/tokens.css`,
+which is the one theme file here. No component invents a value.
 
 Two things are easy to get wrong:
 
-1. **Use the Swift cool blue-ink neutrals** (`#FBFAF8` / `#0C0E17` / `#131620` / `#10182B`), which
-   match the shared design guideline (`examples/DESIGN_GUIDELINE.md §2` in the monorepo). The Web
-   example ships *warm* neutrals that appear in neither the guideline nor the Swift app — do not
-   copy them.
-2. **Use the macOS column** wherever iOS and macOS differ (e.g. composer radius is **16**, not the
-   iOS 28; `hitTarget` is 28, not 44).
+1. Use the Swift cool blue-ink neutrals (`#FBFAF8`, `#0C0E17`, `#131620`,
+   `#10182B`), which match the shared design guideline
+   (`docs/DESIGN_GUIDELINE.md` §2 in the monorepo). The Web app ships warm
+   neutrals that appear in neither the guideline nor the Swift app. Do not copy
+   them.
+2. Use the macOS column wherever iOS and macOS differ. Composer radius is 16,
+   not the iOS 28; `hitTarget` is 28, not 44.
 
-**How parity is checked.** Side-by-side screenshot comparison against the Swift app is a *human*
-review step, done when chrome changes — it is not automated here. There is deliberately **no
-committed pixel baseline**: a `toHaveScreenshot` diff is a function of the machine that produced it
-(font antialiasing, GPU compositing), this suite has no canonical runner (it needs the real
-Electron binary plus the ~43 MB native addon, so it stays off the hosted CI runner), and the app
-ships on both macOS and Windows. What the e2e suite asserts instead is everything portable: tokens
-and motion resolved from computed styles against the Motion table, one selected destination per
-route, and `prefers-reduced-motion` producing a 150 ms crossfade (not a 0 ms blink) with ambient
-loops stopped. See `test/e2e/screens.spec.ts` and `test/e2e/shell.spec.ts`.
+Parity is checked two ways. Side-by-side screenshot comparison against the Swift
+app is a human review step, done when chrome changes. There is deliberately no
+committed pixel baseline: a `toHaveScreenshot` diff is a function of the machine
+that produced it, this suite has no canonical runner, and the app ships on both
+macOS and Windows. What `test/e2e/screens.spec.ts` and `test/e2e/shell.spec.ts`
+assert instead is everything portable: tokens and motion resolved from computed
+styles against the Motion table, sidebar scoping per destination, and
+`prefers-reduced-motion` producing a 150 ms crossfade rather than a 0 ms blink,
+with ambient loops stopped.
 
----
+`test/e2e/inference.spec.ts` is the other half. It runs a real model per modality
+through `window.runanywhere`, and with `RA_PACKAGED_EXE` it runs against a built
+installer instead of the dev tree, which is the only way packaging faults surface
+as packaging faults.
 
 ## Architecture
 
@@ -131,38 +141,56 @@ MAIN (CJS)                      forks
      RENDERER (ESM bundle)  ── preload (CJS) ──►  window.runanywhere / window.appStore
 ```
 
-Streaming: an `AsyncIterable` **cannot** cross `contextBridge`. Streams arrive on a per-request
-channel and a renderer-side adapter re-exposes an `AsyncIterable` whose `return()` sends a cancel
-— which keeps `iterator.return?.()` working as the Stop button at every call site.
+Streaming: an `AsyncIterable` cannot cross `contextBridge`. Streams arrive on a
+per-request channel and a renderer-side adapter re-exposes an `AsyncIterable`
+whose `return()` sends a cancel, which keeps `iterator.return?.()` working as the
+Stop button at every call site.
 
----
+Packaged builds: the paths `register()` computes point inside `app.asar`, where
+Electron's fs shim makes them look real to JavaScript while the OS loader sees
+nothing. `src/main/paths.ts` rewrites the addon path and every plugin path to
+`app.asar.unpacked` before use.
 
 ## Non-negotiables
 
-- `app.setName('RunAnywhere AI')` **before** any `app.getPath('userData')`.
-- The catalog is registered **before** the SDK preload is required (registration is per-process).
-- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: false` (the preload requires SDK
-  modules).
-- All four security handlers: permission allowlist (`media`/`audioCapture` only),
-  `setWindowOpenHandler`, `will-navigate`, `will-attach-webview`.
-- The menu is **replaced, not hidden** — hiding it leaves DevTools accelerators live in a shipped
-  build. On macOS `{ role: 'appMenu' }` must be first, or there is no ⌘Q/About/Preferences.
-- Test IPC channels are registered **only** under `RA_SELFTEST=1` (one of them calls `app.exit`).
-- Store writes stay atomic (temp + `fsync` + rename) with corrupt-file backup; conversations
-  capped at 200.
-- Settings saves **merge**, never replace — per-modality model choices live in the same object.
-- Removing a custom model clears any `settings.models[type]` pointing at it.
-- `webUtils.getPathForFile` is the only `File` → path route (Electron removed `File.path`).
-- **CSP forbids `eval`/`new Function`** — this is why the demo calculator has a hand-written
-  arithmetic parser.
+- `app.setName('RunAnywhere AI')` before any `app.getPath('userData')`.
+- The catalog is registered before the SDK preload is required. Registration is
+  per-process.
+- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: false` (the
+  preload requires SDK modules).
+- All four security handlers: permission allowlist (`media` and `audioCapture`
+  only), `setWindowOpenHandler`, `will-navigate`, `will-attach-webview`.
+- The menu is replaced, not hidden. Hiding it leaves DevTools accelerators live
+  in a shipped build. On macOS `{ role: 'appMenu' }` must be first, or there is
+  no Cmd-Q, About, or Preferences.
+- Test IPC channels are registered only under `RA_SELFTEST=1`. One of them calls
+  `app.exit`.
+- Store writes stay atomic (temp file, `fsync`, rename) and an unparseable file
+  is copied aside rather than discarded. Conversations are capped at 200.
+- Settings saves merge, never replace. Per-modality model choices live in the
+  same object.
+- `webUtils.getPathForFile` is the only `File` to path route. Electron removed
+  `File.path`.
+- CSP forbids `eval` and `new Function`, which is why the demo calculator has a
+  hand-written arithmetic parser.
 - Leaving Voice or Diarization closes the microphone.
-- One generation / one RAG query / one VAD window at a time.
-- Model residency is the **SDK's** decision — never reintroduce an app-side unload policy.
+- One generation, one RAG query, one VAD window at a time.
+- Model residency is the SDK's decision. Never reintroduce an app-side unload
+  policy.
+- Errors surfaced to the user come from the SDK's typed `SDKException` and its
+  `ErrorCode`. Do not collapse a native failure into a plain string.
 
 ## Windows
 
-macOS parity is the design target; Windows is a shipping target and must not regress. The `.cmd`
-launchers (which clear `ELECTRON_RUN_AS_NODE`), `%APPDATA%` paths, DPAPI secure storage, the CUDA
-prebuild opt-in (`--gpu` / `RA_GPU=1`, never the silent default), and the `.ico` icon all stay.
-Platform-specific copy must be platform-conditional — never show "Windows DPAPI" or a `.cmd`
-filename on macOS.
+macOS parity is the design target; Windows is a shipping target and must not
+regress. Windows engines ship and load at SDK 0.20.22. The `.cmd` launchers
+(which clear `ELECTRON_RUN_AS_NODE`), `%APPDATA%` paths, DPAPI secure storage,
+the GPU opt-in (`--gpu` / `RA_GPU=1`, never the silent default), and the `.ico`
+icon all stay.
+
+Windows has two mutually exclusive lanes: x64 carries llamacpp, onnx and sherpa;
+arm64 carries QHexRT alone, with no CPU engine behind it. Anything that assumes
+a CPU fallback is wrong on ARM64.
+
+Platform-specific copy must be platform-conditional. Never show "Windows DPAPI"
+or a `.cmd` filename on macOS.
