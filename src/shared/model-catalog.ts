@@ -226,7 +226,9 @@ function piper(voice: string, label: string, sizeMB: number): CatalogEntry {
 }
 
 // Every URL below was HTTP-verified (200 + "GGUF" magic bytes) on 2026-07-27,
-// the LFM2.5 230M row on 2026-08-05, and the LFM2.5 VL 3B row on 2026-08-13.
+// the LFM2.5 230M row on 2026-08-05, the LFM2.5 VL 3B row on 2026-08-13, and the
+// Gemma 4 12B/26B-A4B/31B and Qwen3.6/Qwen3.8 rows against the HF API on
+// 2026-08-15.
 // Sizes are the real content-length, not estimates.
 export const CATALOG: Catalog = {
   // ---- Qwen3.5 (chat + vision; one repo ships both the model and its projector) ----
@@ -237,6 +239,10 @@ export const CATALOG: Catalog = {
   'qwen3.5-4b': llm('unsloth/Qwen3.5-4B-GGUF', 'Qwen3.5-4B-Q4_K_M.gguf', 'Qwen3.5 4B', '4B', 2614, true),
   'qwen3.5-4b-vl': vlm('unsloth/Qwen3.5-4B-GGUF', 'Qwen3.5-4B-Q4_K_M.gguf', 'mmproj-F16.gguf', 'Qwen3.5 4B Vision', '4B', 3413, true),
   'qwen3.5-9b': llm('unsloth/Qwen3.5-9B-GGUF', 'Qwen3.5-9B-Q4_K_M.gguf', 'Qwen3.5 9B', '9B', 5417, true),
+
+  // ---- Qwen3.6 / Qwen3.8 (newer Qwen releases; MoE + dense) ----
+  'qwen3.6-35b-a3b': llm('unsloth/Qwen3.6-35B-A3B-GGUF', 'Qwen3.6-35B-A3B-UD-Q4_K_M.gguf', 'Qwen3.6 35B-A3B', '35B-A3B', 21112, true),
+  'qwen3.8-27b': llm('unsloth/Qwen3.8-27B-GGUF', 'Qwen3.8-27B-Q4_K_M.gguf', 'Qwen3.8 27B', '27B', 16314, true),
 
   // ---- LFM2.5 (Liquid AI) — chat, a reasoning variant that emits <think>…</think>
   //      (the app splits it out), and vision ----
@@ -280,6 +286,12 @@ export const CATALOG: Catalog = {
   'gemma-4-e2b': llm('unsloth/gemma-4-E2B-it-GGUF', 'gemma-4-E2B-it-Q4_K_M.gguf', 'Gemma 4 E2B', '2B eff.', 2963, true, 'gemma', 'gemma'),
   'gemma-4-e2b-vl': vlm('unsloth/gemma-4-E2B-it-GGUF', 'gemma-4-E2B-it-Q4_K_M.gguf', 'mmproj-F16.gguf', 'Gemma 4 E2B Vision', '2B eff.', 4092, true, 'gemma', 'gemma'),
   'gemma-4-e4b': llm('unsloth/gemma-4-E4B-it-GGUF', 'gemma-4-E4B-it-Q4_K_M.gguf', 'Gemma 4 E4B', '4B eff.', 4747, true, 'gemma', 'gemma'),
+  'gemma-4-12b': llm('unsloth/gemma-4-12b-it-GGUF', 'gemma-4-12b-it-Q4_K_M.gguf', 'Gemma 4 12B', '12B', 6791, true, 'gemma', 'gemma'),
+  'gemma-4-26b-a4b': llm('unsloth/gemma-4-26B-A4B-it-GGUF', 'gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf', 'Gemma 4 26B-A4B', '26B-A4B', 16225, true, 'gemma', 'gemma'),
+  // The 31B dense row ships two quants: the standard Q4_K_M and a smaller
+  // 2-bit UD-Q2_K_XL for machines that cannot fit the 4-bit file.
+  'gemma-4-31b': llm('unsloth/gemma-4-31B-it-GGUF', 'gemma-4-31B-it-Q4_K_M.gguf', 'Gemma 4 31B', '31B', 17475, true, 'gemma', 'gemma'),
+  'gemma-4-31b-q2': llm('unsloth/gemma-4-31B-it-GGUF', 'gemma-4-31B-it-UD-Q2_K_XL.gguf', 'Gemma 4 31B (Q2)', '31B', 11230, true, 'gemma', 'gemma'),
 
   // ---- Llama (Meta) — Llama 3.2 Community License ----
   'llama-3.2-3b': llm('unsloth/Llama-3.2-3B-Instruct-GGUF', 'Llama-3.2-3B-Instruct-Q4_K_M.gguf', 'Llama 3.2 3B', '3B', 1926, true, 'llama32', 'llama3'),
