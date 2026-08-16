@@ -25,6 +25,18 @@ files:
   - '!**/eslint.config.*'
   - '!electron-builder.yml'
 
+# Foreign-platform natives are removed after packing — see scripts/after-pack.mjs.
+# Every @runanywhere tarball carries all three platform payloads (that is what
+# lets one tree emit both Windows arches), so an x64 Windows build shipped
+# 338 MB of prebuilds to use 109 MB of them.
+#
+# This is a hook rather than a `files` pattern on purpose: there is no
+# `${platform}` macro, and a platform-specific `files:` block does not merge
+# with the top-level exclusions the way it reads like it should. Both attempts
+# silently shipped NOTHING, which is a worse failure than shipping too much —
+# the app still launches and every engine disappears.
+afterPack: ./scripts/after-pack.mjs
+
 asar: true
 
 # Unpack every loadable native artifact under the Electron SDK — and by

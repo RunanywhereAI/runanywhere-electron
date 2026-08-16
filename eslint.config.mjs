@@ -11,6 +11,19 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Build/maintenance scripts: plain Node ESM, no TypeScript project. Without
+    // this block every `console` and `process` reference in scripts/ is a
+    // no-undef error, which is why they had to stay outside the lint scope.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
+  {
     files: ['src/**/*.ts', 'assets/**/*.ts'],
     languageOptions: {
       parserOptions: {
