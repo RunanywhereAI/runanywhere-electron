@@ -9,6 +9,7 @@ import './design/tokens.css';
 import './design/base.css';
 import './design/components.css';
 
+import { NEURT_MODELS } from '@shared/neurt-catalog';
 import { DEFAULT_SETTINGS, type AppSettings } from '@shared/settings';
 
 import { showError, showToast } from './components/toast';
@@ -103,6 +104,29 @@ async function boot(): Promise<void> {
       environment: backend.environment,
     });
     log.info('sdk ready', await window.runanywhere.version(), 'on', platform.platform, platform.arch);
+
+    // NeuRT (Apple Neural Engine) models are Core ML bundle DIRECTORIES with a
+    // variable, coremltools-determined file count — unlike every other row in
+    // `CATALOG`, they cannot be described as a fixed `files: CatalogFile[]`
+    // list, so they register by URL instead, the same mechanism the SDK's own
+    // "add from URL" flow uses for an arbitrary Hugging Face folder ref.
+    // macOS-only: NeuRT is the Apple Neural Engine backend, so registering
+    // these rows anywhere else would offer models with no engine to load them.
+    if (platform.platform === 'darwin') {
+      for (const model of NEURT_MODELS) {
+        try {
+          await window.runanywhere.models.register({
+            id: model.id,
+            name: model.name,
+            url: model.url,
+            category: model.category,
+            framework: 'COREML',
+          });
+        } catch (error) {
+          log.warn('neurt model registration failed', model.id, error);
+        }
+      }
+    }
   } catch (error) {
     log.error('sdk initialize failed', error);
     showError(error, 'On-device AI could not start. Model actions are unavailable.');

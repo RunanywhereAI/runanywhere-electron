@@ -57,7 +57,7 @@ const DEFAULT_BUILD = path.resolve(
 const BUILD_ROOT = process.env.RA_SDK_BUILD || DEFAULT_BUILD;
 const SDKS_ROOT = process.env.RA_SDK_ROOT || path.resolve(BUILD_ROOT, '..', '..');
 
-const BACKENDS = ['llamacpp', 'onnx', 'sherpa', 'qhexrt'];
+const BACKENDS = ['llamacpp', 'onnx', 'sherpa', 'qhexrt', 'neurt'];
 
 /** npm package directory for a backend id, or core. */
 function packageDir(id) {
@@ -118,6 +118,7 @@ function qnnRuntimeFiles() {
     path.join(hostDir, 'QnnSystem.dll'),
     path.join(hostDir, 'QnnHtpPrepare.dll'),
     path.join(hostDir, `QnnHtp${dspArch.toUpperCase()}Stub.dll`),
+    path.join(hostDir, `QnnHtp${dspArch.toUpperCase()}CalculatorStub.dll`),
     path.join(skelDir, `libQnnHtp${dspArch.toUpperCase()}Skel.so`),
     path.join(skelDir, `libqnnhtp${dspArch}.cat`),
   ];

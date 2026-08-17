@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { NEURT_MODELS } from '../../src/shared/neurt-catalog';
+
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** Downloads dominate; inference itself is seconds. */
@@ -95,6 +97,31 @@ test.beforeAll(async () => {
   // eslint-disable-next-line no-console
   console.log('sdk init:', init);
   expect(init, 'SDK failed to initialize').toBe('initialized');
+
+  // NeuRT models register by URL from the renderer's own boot(), AFTER its own
+  // `initialize()` call resolves — a step this harness does not wait on above
+  // (see the comment there: driving init here races the app's own boot(),
+  // deliberately). Register them again here, synchronously, for the same
+  // reason: `models.register` for an id already registered is a no-op, not an
+  // error, so doing it twice is safe and makes the models available before any
+  // test body runs rather than at some later, non-deterministic point.
+  if (process.platform === 'darwin') {
+    await page.evaluate(async (models) => {
+      for (const model of models) {
+        try {
+          await window.runanywhere.models.register({
+            id: model.id,
+            name: model.name,
+            url: model.url,
+            category: model.category,
+            framework: 'COREML',
+          });
+        } catch {
+          // best-effort, matching main.ts's own registration loop
+        }
+      }
+    }, NEURT_MODELS);
+  }
 });
 
 test.afterAll(async () => {
@@ -198,6 +225,38 @@ test('qhexrt generates text on the Hexagon NPU', async () => {
 
   // eslint-disable-next-line no-console
   console.log('npu result:', JSON.stringify(result));
+  expect(result.text.trim().length).toBeGreaterThan(0);
+});
+
+/**
+ * Apple Neural Engine, via NeuRT/Core ML. macOS-only by construction: there is
+ * no ANE anywhere else, and `main.ts` only registers these rows on `darwin`.
+ *
+ * Unlike QHexRT's private NPU bundles, these repos are public, so the model
+ * downloads through the normal catalog flow rather than requiring an
+ * out-of-band placement.
+ */
+test('neurt generates text on the Apple Neural Engine', async () => {
+  test.skip(process.platform !== 'darwin', 'NeuRT requires macOS');
+  test.setTimeout(DOWNLOAD_TIMEOUT);
+  const modelId = process.env.RA_ANE_MODEL_ID ?? 'lfm2.5-230m-ane';
+
+  await page.evaluate(async (id) => {
+    for await (const event of window.runanywhere.models.download(id)) {
+      if (event.type === 'completed' || event.type === 'failed') break;
+    }
+  }, modelId);
+
+  const result = await page.evaluate(async (id) => {
+    await window.runanywhere.models.load(id);
+    const out = await window.runanywhere.llm.generate('Name one colour. Answer with one word.', {
+      maxTokens: 24,
+    });
+    return { text: out.text, model: out.model, tokensPerSecond: out.tokensPerSecond };
+  }, modelId);
+
+  // eslint-disable-next-line no-console
+  console.log('ane result:', JSON.stringify(result));
   expect(result.text.trim().length).toBeGreaterThan(0);
 });
 
