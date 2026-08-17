@@ -194,3 +194,12 @@ a CPU fallback is wrong on ARM64.
 
 Platform-specific copy must be platform-conditional. Never show "Windows DPAPI"
 or a `.cmd` filename on macOS.
+
+**This app ships for Windows only.** Developing and testing on macOS (dev tree,
+`npm run build`, headless e2e) is normal and expected — macOS parity is still the
+design target for UI/UX — but there is no macOS production package for this app:
+do not sign, notarize, or distribute a `.dmg` built from this repo. The Mac
+desktop release is `runanywhere-ios`'s native macOS target instead (see that
+repo's AGENTS.md); package and ship it from there. A real Windows production
+build/test pass needs an actual Windows machine — ask a maintainer for access to
+the project's Windows test host rather than assuming a local VM.
