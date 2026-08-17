@@ -16,6 +16,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electro
 
 import { RunAnywhereMain } from '@runanywhere/electron/main';
 import { LlamaCPP } from '@runanywhere/electron-llamacpp';
+import { NeuRT } from '@runanywhere/electron-neurt';
 import { ONNX } from '@runanywhere/electron-onnx';
 import { QHexRT } from '@runanywhere/electron-qhexrt';
 import { Sherpa } from '@runanywhere/electron-sherpa';
@@ -77,6 +78,7 @@ LlamaCPP.register({ pluginPath: resolvePluginPath('@runanywhere/electron-llamacp
 ONNX.register({ pluginPath: resolvePluginPath('@runanywhere/electron-onnx', 'onnx') });
 Sherpa.register({ pluginPath: resolvePluginPath('@runanywhere/electron-sherpa', 'sherpa') });
 QHexRT.register({ pluginPath: resolvePluginPath('@runanywhere/electron-qhexrt', 'qhexrt') });
+NeuRT.register({ pluginPath: resolvePluginPath('@runanywhere/electron-neurt', 'neurt') });
 // Resolve the addon at startup but keep the failure readable: an uncaught throw
 // here would close the app with no window and no message.
 let nativePath: string | null = null;
