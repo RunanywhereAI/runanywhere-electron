@@ -4,6 +4,15 @@ An Electron desktop app for macOS and Windows, built on `@runanywhere/electron`.
 Chat, reasoning, retrieval over your own documents, voice, and vision all run
 on-device. No prompt, document, or audio is sent anywhere.
 
+## Screenshots
+
+Captured on macOS with Qwen3.5 0.8B loaded through the llamacpp backend.
+
+| | |
+|---|---|
+| ![Chat](docs/screenshots/01-home.png) | ![Models](docs/screenshots/02-models.png) |
+| A new chat. The header names the loaded model, and the footer states that inference runs locally. | Models lists what is on disk and what can be pulled, grouped by embeddings and language, with sizes. |
+
 ## How the SDK is installed
 
 The SDK comes from the npm registry. There are no `file:` links and no path
