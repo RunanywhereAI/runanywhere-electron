@@ -23,9 +23,9 @@
     "sdk:remote": "node scripts/use-sdk.mjs remote",
     "sdk:status": "node scripts/use-sdk.mjs status",
     "selftest": "npm run build && cross-env RA_SELFTEST=1 electron .",
-    "package": "npm run build && electron-builder",
-    "package:mac": "npm run build && electron-builder --mac",
-    "package:win": "npm run build && electron-builder --win"
+    "package": "node scripts/generate-env.mjs && npm run build && electron-builder",
+    "package:mac": "node scripts/generate-env.mjs && npm run build && electron-builder --mac",
+    "package:win": "node scripts/generate-env.mjs && npm run build && electron-builder --win"
   },
   "engines": {
     "node": ">=22.12.0"
