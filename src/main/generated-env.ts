@@ -7,6 +7,8 @@
  * blank — it is what a fresh clone typechecks against and what a package
  * build with no credentials on hand produces. See main/env.ts: a runtime
  * `.env` file or real environment variable still wins over this fallback.
+ * scripts/package.mjs restores this file to blank right after packaging,
+ * so a real value here is only ever transient on disk, never committed.
  */
 export const BUILT_IN_ENV = {
   apiKey: "",
