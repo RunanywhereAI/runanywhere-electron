@@ -118,6 +118,7 @@ function qnnRuntimeFiles() {
     path.join(hostDir, 'QnnSystem.dll'),
     path.join(hostDir, 'QnnHtpPrepare.dll'),
     path.join(hostDir, `QnnHtp${dspArch.toUpperCase()}Stub.dll`),
+    path.join(hostDir, `QnnHtp${dspArch.toUpperCase()}CalculatorStub.dll`),
     path.join(skelDir, `libQnnHtp${dspArch.toUpperCase()}Skel.so`),
     path.join(skelDir, `libqnnhtp${dspArch}.cat`),
   ];
