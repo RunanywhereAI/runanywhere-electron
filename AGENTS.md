@@ -180,6 +180,29 @@ nothing. `src/main/paths.ts` rewrites the addon path and every plugin path to
 - Errors surfaced to the user come from the SDK's typed `SDKException` and its
   `ErrorCode`. Do not collapse a native failure into a plain string.
 
+## Production release requirements
+
+A production package needs a real org-scoped API key and backend base URL — the same pair
+used by `runanywhere-ios`'s `RunAnywhereLocalSecrets.plist`, `runanywhere-android`'s
+`local.properties`, and `runanywhere-web`'s Vercel production env. Set them in the
+gitignored `.env` (`RUNANYWHERE_API_KEY` / `RUNANYWHERE_BASE_URL`); ask a maintainer for
+current production credentials. Never hardcode them in any committed file.
+
+A production package must build against the published `@runanywhere/electron*` npm
+packages only — this repo has a local-vs-npm dev switch for iterating against an unreleased
+SDK build; before packaging a release, confirm it is set to the npm lane and clear any
+local SDK overlay/cache so the build genuinely pulls from the registry, not a local build.
+
+Headless e2e passing is not sufficient. Actually launch the packaged app (not just
+`npm run build` output) on macOS as a real smoke test before calling it release-ready.
+Windows must be validated on a real Windows machine/VM — there is no way to run or test
+the Windows target on macOS; run the same dev-tree test pass, NPU benchmark, and a
+packaged-`.exe` smoke test there for whatever SDK version is current. `mac.identity` and
+the Windows `certificateFile`/`certificateSubjectName`
+are currently unset (null) in `electron-builder.yml` — packages today are unsigned and
+unnotarized; Gatekeeper and SmartScreen will warn until real Apple Developer ID +
+notarization and a Windows Authenticode cert are supplied and wired in.
+
 ## Windows
 
 macOS parity is the design target; Windows is a shipping target and must not

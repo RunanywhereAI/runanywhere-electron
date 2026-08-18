@@ -1,17 +1,20 @@
 /**
- * Control-plane credentials, read from a gitignored `.env` (or the environment).
+ * Control-plane credentials, read from a gitignored `.env` (or the environment),
+ * falling back to whatever `scripts/generate-env.mjs` baked in at package time.
  *
  * Mirrors the Android example's `local.properties` contract: with both a base URL
  * and an API key set, the SDK initializes in PRODUCTION (org-scoped, authed
  * telemetry); with neither, DEVELOPMENT (keyless).
  *
- * Read in main because the sandboxed renderer has no filesystem access.
+ * Read in main because the sandboxed renderer has no filesystem access. A
+ * packaged app has no loose `.env` beside it either — see generated-env.ts.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 import type { BackendConfig } from '../shared/ipc-contract';
 
+import { BUILT_IN_ENV } from './generated-env';
 import { APP_ROOT } from './paths';
 
 /** Parse a minimal .env: `KEY=value`, `#` comments, optional surrounding quotes. */
@@ -39,12 +42,15 @@ function readDotEnv(file: string): Partial<Record<string, string>> {
 
 export function backendConfig(): BackendConfig {
   const fromFile = readDotEnv(path.join(APP_ROOT, '.env'));
-  // A real environment variable wins over the file, so a CI or shell override
-  // does not need the file edited.
-  const read = (key: string): string => (process.env[key] ?? fromFile[key] ?? '').trim();
+  // A real environment variable wins over the file, the file wins over the
+  // package-time baked-in default, so a CI or shell override never needs the
+  // file edited, and a packaged app with neither still gets what the machine
+  // that ran `npm run package*` had.
+  const read = (key: string, builtIn: string): string =>
+    (process.env[key] ?? fromFile[key] ?? builtIn).trim();
 
-  const apiKey = read('RUNANYWHERE_API_KEY');
-  const baseUrl = read('RUNANYWHERE_BASE_URL');
+  const apiKey = read('RUNANYWHERE_API_KEY', BUILT_IN_ENV.apiKey);
+  const baseUrl = read('RUNANYWHERE_BASE_URL', BUILT_IN_ENV.baseUrl);
 
   return {
     apiKey,
