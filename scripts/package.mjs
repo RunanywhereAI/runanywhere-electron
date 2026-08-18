@@ -17,6 +17,15 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const builderArgs = process.argv.slice(2);
 
+/**
+ * Runs a step and returns its exit code — a nonzero return (rather than a
+ * thrown error) for an ordinary subprocess failure, so callers can decide
+ * whether to keep going without an exception cutting the `finally` restore
+ * step short. `result.error` (e.g. the executable itself couldn't be
+ * launched) still surfaces as a real thrown error — restore still runs via
+ * `finally`, but the underlying environment problem should not be masked as
+ * exit code 1.
+ */
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: repoRoot, stdio: 'inherit', shell: process.platform === 'win32' });
   if (result.error) throw result.error;
@@ -26,18 +35,26 @@ function run(command, args) {
 let exitCode = 1;
 try {
   exitCode = run(process.execPath, ['scripts/generate-env.mjs']);
-  if (exitCode !== 0) throw new Error(`generate-env failed with exit code ${exitCode}`);
 
-  exitCode = run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build']);
-  if (exitCode !== 0) throw new Error(`build failed with exit code ${exitCode}`);
+  if (exitCode === 0) {
+    exitCode = run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build']);
+  }
 
-  exitCode = run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['electron-builder', ...builderArgs]);
+  if (exitCode === 0) {
+    exitCode = run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['electron-builder', ...builderArgs]);
+  }
 } finally {
-  // Always restore, even if a step above threw — a partial/failed package
-  // must not leave a real credential sitting in the tracked working tree.
+  // Always restore, even after a failed step above — a partial/failed
+  // package must not leave a real credential sitting in the tracked
+  // working tree.
   const restoreCode = run(process.execPath, ['scripts/generate-env.mjs', '--restore']);
   if (restoreCode !== 0) {
     console.error('package: WARNING — failed to restore generated-env.ts to blank; check it by hand before committing anything.');
+    // Don't let a successful package mask a failed restore: a real
+    // credential could still be sitting in the tracked file even though
+    // packaging itself succeeded. Preserve an earlier package failure's
+    // exit code if there already was one.
+    if (exitCode === 0) exitCode = restoreCode;
   }
 }
 
