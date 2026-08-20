@@ -238,7 +238,6 @@ function piper(voice: string, label: string, sizeMB: number): CatalogEntry {
 // Supertonic 3 rows (also 2026-08-15, same pass).
 // Sizes are the real content-length, not estimates.
 export const CATALOG: Catalog = {
-  // ---- Qwen3.5 (chat + vision; one repo ships both the model and its projector) ----
   'qwen3.5-0.8b': llm('unsloth/Qwen3.5-0.8B-GGUF', 'Qwen3.5-0.8B-Q4_K_M.gguf', 'Qwen3.5 0.8B', '0.8B', 508),
   'qwen3.5-0.8b-vl': vlm('unsloth/Qwen3.5-0.8B-GGUF', 'Qwen3.5-0.8B-Q4_K_M.gguf', 'mmproj-F16.gguf', 'Qwen3.5 0.8B Vision', '0.8B', 738),
   'qwen3.5-2b': llm('unsloth/Qwen3.5-2B-GGUF', 'Qwen3.5-2B-Q4_K_M.gguf', 'Qwen3.5 2B', '2B', 1222),
@@ -249,7 +248,7 @@ export const CATALOG: Catalog = {
 
   // ---- Qwen3.6 / Qwen3.8 (newer Qwen releases; MoE + dense) ----
   'qwen3.6-35b-a3b': llm('unsloth/Qwen3.6-35B-A3B-GGUF', 'Qwen3.6-35B-A3B-UD-Q4_K_M.gguf', 'Qwen3.6 35B-A3B', '35B-A3B', 21112, true),
-  'qwen3.8-27b': llm('unsloth/Qwen3.8-27B-GGUF', 'Qwen3.8-27B-Q4_K_M.gguf', 'Qwen3.8 27B', '27B', 16314, true),
+  'qwen3.8-27b': llm('unsloth/Qwen3.8-27B-GGUF', 'Qwen3.8-27B-UD-Q4_K_M.gguf', 'Qwen3.8 27B', '27B', 16314, true),
 
   // ---- LFM2.5 (Liquid AI) — chat, a reasoning variant that emits <think>…</think>
   //      (the app splits it out), and vision ----
@@ -298,16 +297,6 @@ export const CATALOG: Catalog = {
   // The 31B dense row ships two quants: the standard Q4_K_M and a smaller
   // 2-bit UD-Q2_K_XL for machines that cannot fit the 4-bit file.
   'gemma-4-31b': llm('unsloth/gemma-4-31B-it-GGUF', 'gemma-4-31B-it-Q4_K_M.gguf', 'Gemma 4 31B', '31B', 17475, true, 'gemma', 'gemma'),
-  'gemma-4-31b-q2': llm('unsloth/gemma-4-31B-it-GGUF', 'gemma-4-31B-it-UD-Q2_K_XL.gguf', 'Gemma 4 31B (Q2)', '31B', 11230, true, 'gemma', 'gemma'),
-
-  // ---- Llama (Meta) — Llama 3.2 Community License ----
-  'llama-3.2-3b': llm('unsloth/Llama-3.2-3B-Instruct-GGUF', 'Llama-3.2-3B-Instruct-Q4_K_M.gguf', 'Llama 3.2 3B', '3B', 1926, true, 'llama32', 'llama3'),
-
-  // ---- Muse Glimmer (Meta Superintelligence Labs) — Apache 2.0, VLM only ----
-  // Dense 30B agentic model with a dedicated perception (ViT) encoder — a real
-  // mmproj, not a text-only model dressed up as one. Distinct family from Llama
-  // above (different architecture, different Meta org), so it gets its own
-  // section rather than sitting under the Llama heading.
   'muse-glimmer-30b': vlm('unsloth/Muse-Glimmer-30B-GGUF', 'Muse-Glimmer-30B-UD-Q4_K_XL.gguf', 'mmproj-Muse-Glimmer-30B-Q8_0.gguf', 'Muse Glimmer 30B', '30B', 17099, true),
 
   // ---- Ministral (Mistral AI) ----
@@ -416,6 +405,14 @@ export const CATALOG: Catalog = {
     params: 'B0',
     sizeMB: 15,
   },
+
+  // ---- Added from the verified model list ----
+  'lfm2.5-2.6b-q4_k_m': llm('LiquidAI/LFM2.5-2.6B-GGUF', 'LFM2.5-2.6B-Q4_K_M.gguf', 'LFM2.5 2.6B Q4_K_M', '2.6B', 1674, false, 'lfm1'),
+  'bonsai-1.7b-q1_0': llm('prism-ml/Bonsai-1.7B-gguf', 'Bonsai-1.7B-Q1_0.gguf', 'PrismML Bonsai 1.7B (1-bit)', '1.7B', 248, false, 'apache2'),
+  'bonsai-4b-q1_0': llm('prism-ml/Bonsai-4B-gguf', 'Bonsai-4B-Q1_0.gguf', 'PrismML Bonsai 4B (1-bit)', '4B', 572, false, 'apache2'),
+  'bonsai-8b-q1_0': llm('prism-ml/Bonsai-8B-gguf', 'Bonsai-8B-Q1_0.gguf', 'PrismML Bonsai 8B (1-bit)', '8B', 1159, false, 'apache2'),
+  'maple-preview-tq1_0': llm('deepgrove/maple-preview-GGUF', 'maple-preview-TQ1_0-head-Q4_K.gguf', 'Maple Preview 20B-A1B TQ1_0 (1-bit)', '20B-A1B', 4984, false, 'mit'),
+  'bonsai-27b-q1_0': llm('prism-ml/Bonsai-27B-gguf', 'Bonsai-27B-Q1_0.gguf', 'PrismML Bonsai 27B (1-bit)', '27B', 3803, false, 'apache2'),
 };
 
 /** Human label for a modality, as the model picker and chips show it. */
