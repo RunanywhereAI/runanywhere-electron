@@ -1,71 +1,88 @@
-# RunAnywhere AI
+# RunAnywhere AI for Windows
 
-An Electron desktop app for macOS and Windows, built on `@runanywhere/electron`.
-Chat, reasoning, retrieval over your own documents, voice, and vision all run
-on-device. No prompt, document, or audio is sent anywhere.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/RunanywhereAI/runanywhere-sdks/main/docs/logo.svg" alt="RunAnywhere" width="120"/>
+</p>
 
-## How the SDK is installed
+<p align="center">
+  <a href="https://github.com/RunanywhereAI/runanywhere-electron/releases/latest">
+    <img src="https://img.shields.io/badge/Windows-Download%20.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" />
+  </a>
+</p>
 
-The SDK comes from the npm registry. There are no `file:` links and no path
-aliases into an SDK checkout, so the app builds anywhere the folder is copied.
-Each package carries its own native build at
-`node_modules/@runanywhere/<pkg>/prebuilds/<platform>-<arch>/`: the core addon
-plus shared commons in `@runanywhere/electron`, and a plugin carrier plus its
-engine payload in each backend package. Nothing is compiled from source, so
-`npm ci` is the whole staging step.
+<p align="center">
+  <img src="https://img.shields.io/badge/Electron-desktop-47848F?style=flat-square&logo=electron&logoColor=white" alt="Electron" />
+  <img src="https://img.shields.io/badge/NPU-Snapdragon%20X-C41230?style=flat-square&logo=qualcomm&logoColor=white" alt="Snapdragon X NPU" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/License-RunAnywhere-blue?style=flat-square" alt="RunAnywhere License" />
+</p>
 
-```jsonc
-// package.json
-"dependencies": {
-  "@runanywhere/electron":          "^0.20.22",
-  "@runanywhere/electron-llamacpp": "^0.20.22",
-  "@runanywhere/electron-onnx":     "^0.20.22",
-  "@runanywhere/electron-qhexrt":   "^0.20.22",
-  "@runanywhere/electron-sherpa":   "^0.20.22",
-  "@runanywhere/proto-ts":          "^0.20.22"
-}
-```
+The RunAnywhere consumer app for Windows, built with Electron.
 
-The resolved tree is pinned by the committed `package-lock.json`. Use `npm ci`
-for a reproducible install. `npm install` is for deliberately moving a
-dependency, and the regenerated lock file is committed with that change.
+Ask it questions, talk to it, show it an image, or point it at your own documents. Everything
+runs on your machine, so nothing you type or say is sent anywhere, and it works with the
+network off.
 
-| Package | Role |
+## Get it
+
+| Your PC | Download |
+| --- | --- |
+| Intel or AMD | [the `win-x64` installer](https://github.com/RunanywhereAI/runanywhere-electron/releases/latest) |
+| Snapdragon X and other ARM64 | [the `win-arm64` installer](https://github.com/RunanywhereAI/runanywhere-electron/releases/latest) |
+
+Pick by the chip, not by guesswork: the two builds carry different inference engines. The
+x64 build runs llama.cpp, ONNX, and Sherpa on the CPU. The ARM64 build runs QHexRT on the
+Qualcomm Hexagon NPU, and nothing else, because QAIRT ships no Hexagon stub for x86_64 and
+neither ggml nor ONNX Runtime builds for Windows on ARM64.
+
+The installers are not code signed yet, so Windows SmartScreen warns the first time you run
+one. Choose More info, then Run anyway.
+
+<!-- GIF slot: chat with tool calling, the voice session, and vision.
+     Waiting on the capture pass that follows the current app bug fixes. -->
+
+## What it looks like
+
+Captured with a small GGUF chat model loaded through the llama.cpp backend.
+
+| | |
 |---|---|
-| `@runanywhere/electron` | Core SDK: main-process host, preload (`window.runanywhere`), the native addon |
-| `@runanywhere/electron-llamacpp` | LlamaCPP backend (LLM, VLM) |
-| `@runanywhere/electron-onnx` | ONNX backend (embeddings, segmentation) |
-| `@runanywhere/electron-qhexrt` | QHexRT backend, Qualcomm Hexagon NPU on Snapdragon X |
-| `@runanywhere/electron-sherpa` | Sherpa backend (STT, TTS, VAD) |
-| `@runanywhere/proto-ts` | Generated protobuf types |
+| ![Chat](docs/screenshots/01-home.png) | ![Models](docs/screenshots/02-models.png) |
+| A new chat. The header names the loaded model, and the footer states that inference runs locally. | Models lists what is on disk and what can be pulled, grouped by capability and then by who published it, with sizes. |
 
-### Which platform gets which engines
+The image files are in [`docs/screenshots/`](docs/screenshots).
 
-| platform-arch | engines that load |
-|---|---|
-| `darwin-arm64` | llamacpp, onnx, sherpa |
-| `win32-x64` | llamacpp, onnx, sherpa |
-| `win32-arm64` | qhexrt only (Hexagon NPU) |
-| linux | none published |
+## What you can do
 
-The two Windows lanes are mutually exclusive by construction: QAIRT ships no
-Hexagon stub for x86_64, and neither ggml nor ONNX Runtime builds for
-win-arm64. So the NPU is the only engine on an ARM64 Windows host, with no CPU
-fallback behind it.
+| | |
+| --- | --- |
+| **Chat** | Streaming conversation with reasoning, tool calling, and structured output |
+| **Voice** | Talk to it and hear the answer back |
+| **Vision** | Ask about an image |
+| **Knowledge** | Retrieval over documents you add yourself |
+| **Transcribe** | Speech to text, batch or streaming |
+| **Speak** | Read any text aloud |
+| **Benchmarks** | Measure what your own machine does |
+| **Models** | Download, inspect, and remove models; see disk usage |
 
-All four backend packages are declared unconditionally and that stays safe. A
-package with no payload for the running platform records a path that does not
-exist, and the SDK drops non-existent paths from `RUNANYWHERE_PLUGIN_PATHS`
-before it forks the utility host. `@runanywhere/electron-qhexrt` is therefore
-inert on macOS and on Windows x64, and llamacpp / onnx / sherpa are inert on
-Windows ARM64. Only what a platform can run shows up in `capabilities().backends`.
+Conversations and settings stay on disk under `%APPDATA%\RunAnywhere AI\`.
 
-`@runanywhere/electron-qhexrt` also bundles the QAIRT/QNN runtime the Hexagon
-NPU loads (four DLLs, the v81 skel, and `libqnnhtpv81.cat`) flat in the same
-directory. Windows has no `ADSP_LIBRARY_PATH`, so the loader resolves the stub's
-dependencies through the DLL's own folder.
+## Models
 
-## Run it
+The picker groups models by capability and then by publisher, so you pick a name you
+recognise and then a size. It carries current-generation open models across chat, vision,
+speech, and embedding, from small ones that answer instantly to larger ones a desktop can
+hold. Anything that wants more memory than a modest machine has is badged rather than
+hidden.
+
+## macOS
+
+The app builds and runs on Apple Silicon Macs (llama.cpp, ONNX, and Sherpa all load), but
+the Mac app we ship to people is the native Swift one in
+[runanywhere-ios](https://github.com/RunanywhereAI/runanywhere-ios). Use that unless you are
+working on this codebase.
+
+## Build it yourself
 
 ```bash
 git clone https://github.com/RunanywhereAI/runanywhere-electron.git
@@ -73,125 +90,69 @@ cd runanywhere-electron
 
 npm ci             # pulls the SDK and its native prebuilds, exactly as locked
 npm start          # build, then launch
-npm run dev        # watch mode: vite dev server + electron
+npm run dev        # watch mode: vite dev server plus electron
 ```
 
-On Windows the two `.cmd` files in the repo root launch the built app from this
-folder (they are what a desktop shortcut points at). They run `electron .`
-directly, so `npm run build` has to have succeeded at least once first.
+Every SDK package ships its own prebuilt native binaries, so nothing compiles from source and
+`npm ci` is the whole staging step. Node 22.12 or newer; CI runs 24.
 
-```bat
-"RunAnywhere AI.cmd"
-"RunAnywhere AI (GPU).cmd"
-```
-
-If the window never appears, check that `ELECTRON_RUN_AS_NODE` is not set. It
-makes `electron.exe` run as plain Node. Both `.cmd` launchers clear it.
-
-### Control-plane credentials
-
-Optional. Copy `.env.example` to `.env` (gitignored) and fill in
-`RUNANYWHERE_BASE_URL` and `RUNANYWHERE_API_KEY` to initialize the SDK in its
-production environment, which sends org-scoped telemetry. With both blank the
-SDK initializes keyless, in development. Either way, inference stays on the
-machine. Real environment variables win over the file.
-
-## Compute device
-
-CPU. `npm run start:gpu` and the `--gpu` flag ask for a CUDA build of the addon
-first (`prebuilds/<platform>-<arch>-cuda/`) and fall back to the CPU prebuild
-when it is absent. The published packages ship no CUDA prebuild, so today that
-fallback is what happens: `start:gpu` runs on CPU unless you supply a CUDA addon
-yourself, through `npm run sdk:local` or `RUNANYWHERE_NATIVE_PATH`. The header
-shows which device is actually in use.
-
-## Verify
-
-| Script | What it does |
-|---|---|
-| `npm run typecheck` | `tsc --noEmit` across the main, preload and renderer configs |
-| `npm run lint` | ESLint over `src`, zero warnings tolerated |
-| `npm test` | Vitest unit tests (`test/unit/**`) |
-| `npm run build` | CJS main and preload, ESM renderer bundle, into `out/` |
-| `npm run selftest` | Headless run of the real code paths, exits 0/1 |
-| `npm run test:e2e` | Playwright drives the real Electron window |
-
-`.github/workflows/ci.yml` runs the first four on `ubuntu-latest` with Node 24
-for every push to `main` and every pull request, installing with `npm ci`
-against the committed lock file.
-
-The Playwright suites are deliberately not in CI. They launch the real Electron
-binary with the native addon, which belongs on a local or self-hosted runner.
-There are two of them:
-
-- `shell.spec.ts` / `screens.spec.ts` assert the portable half of visual parity:
-  design tokens and motion durations read back from computed styles, sidebar
-  scoping per destination, streams surviving `contextBridge`, and reduced motion
-  producing a 150 ms crossfade with ambient loops stopped. There are no
-  screenshot baselines, because a pixel diff is a function of the machine that
-  produced it and there is no canonical runner to produce one on. Side-by-side
-  comparison against the macOS Swift app stays a human review step.
-- `inference.spec.ts` downloads the smallest catalog entry per modality and runs
-  it through `window.runanywhere`, so a pass means the native stack computed
-  something on this machine. Set `RA_PACKAGED_EXE` to point it at a built
-  installer's output instead of the dev tree, which is the only way to catch a
-  packaging fault such as a missing `libqnnhtpv81.cat`.
-
-### Switching the natives to a local SDK build
-
-Only the native layer switches. The TypeScript facade always comes from the
-installed packages.
+To package:
 
 ```bash
-npm run sdk:local    # overlay natives from a local runanywhere-sdks build tree
-npm run sdk:remote   # restore the published payload
-npm run sdk:status   # report which natives are in place
+npm run package:win    # NSIS installers, x64 and arm64
+npm run package:mac    # dmg and zip, arm64
 ```
 
-`RA_SDK_BUILD` overrides the build tree the overlay reads from.
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) covers the engine matrix per platform, the
+asar unpacking rules that make native loading work, the test suites, and how to point the
+natives at a local SDK build.
 
-## Layout
+## Architecture
 
-TypeScript only. Source under `src/`; the build emits CommonJS main and preload
-plus an ESM renderer bundle under `out/`. `"main"` is `out/main/index.cjs`.
+Six npm packages, no monorepo checkout. The renderer never touches a native binary directly:
+it talks to `window.runanywhere`, which the preload exposes across the context bridge, and
+the main process forks a utility host that owns the addon.
 
-| Path | Purpose |
-| --- | --- |
-| `src/main/` | Electron main: forks the utility host, resolves natives, owns the window and the local JSON store |
-| `src/preload/` | Loads the SDK preload (`window.runanywhere`) and exposes `window.appStore` |
-| `src/shared/model-catalog.ts` | This app's model table. Registered by the preload and, as an emitted CommonJS file, by the utility host (`catalogPath`), which is what makes a catalog id resolvable in both processes |
-| `src/renderer/` | The UI: Vite entries (`index.html`, `settings.html`) and the feature views |
-| `assets/` | The icons electron-builder ships (`icon.png`, `icon.ico`) |
-
-Conversations and settings persist as JSON under `%APPDATA%\RunAnywhere AI\`, or
-`~/Library/Application Support/RunAnywhere AI/` on macOS.
-
-## Packaging
-
-electron-builder config lives in `electron-builder.yml`.
-
-| Platform | Targets |
-| --- | --- |
-| macOS | `dmg` and `zip`, arm64 |
-| Windows | NSIS, x64 and arm64 |
-
-```bash
-npm run package        # host platform
-npm run package:mac    # dmg + zip (arm64)
-npm run package:win    # nsis (x64 + arm64)
+```
+   renderer (Vite, TypeScript)
+        │  window.runanywhere, across the context bridge
+   preload
+        │
+   main process ──forks──► utility host ──► @runanywhere/electron
+        │                                     core addon + C++ commons
+   window, local JSON store                        │
+                                    ┌──────────────┼──────────────┐
+                                    │              │              │
+                              electron-        electron-      electron-
+                              llamacpp          onnx           qhexrt
+                              LLM · VLM      embeddings     Hexagon NPU
+                                    │         segmentation   (win-arm64)
+                              electron-sherpa
+                              STT · TTS · VAD
 ```
 
-Native artifacts cannot load from inside `app.asar`, so everything under
-`node_modules/@runanywhere/*/prebuilds/` is `asarUnpack`ed. The config unpacks
-both by extension (`.node`, `.dylib`, `.dll`, `.so`) and by the whole
-`prebuilds/**` tree, which is what covers QHexRT's `libqnnhtpv81.cat`. The
-catalog is not a loadable image, but the Hexagon skel beside it fails signature
-verification without it, and that failure reads as a corrupt model rather than a
-packaging fault.
+All backend packages are declared unconditionally, which stays safe: a package with no
+payload for the running platform records a path that does not exist, and the SDK drops
+non-existent paths before forking the host. Only what your platform can actually run shows
+up in `capabilities().backends`.
 
-Unpacking is only half of it. The paths `register()` computes point inside
-`app.asar`, where Electron's fs shim makes them look real to JavaScript while the
-OS loader sees nothing. `src/main/paths.ts` rewrites both the addon path and each
-plugin path to `app.asar.unpacked` before they are used.
+| Reference | |
+| --- | --- |
+| Engine matrix, packaging, tests, local SDK builds | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
+| Contributor conventions | [`AGENTS.md`](AGENTS.md) |
 
-Publishing and code signing are not wired up. Local packages are unsigned.
+## The other apps
+
+| Platform | Repo |
+| --- | --- |
+| iOS and macOS, Swift | [runanywhere-ios](https://github.com/RunanywhereAI/runanywhere-ios) |
+| Android, Kotlin | [runanywhere-android](https://github.com/RunanywhereAI/runanywhere-android) |
+| Web, TypeScript | [runanywhere-web](https://github.com/RunanywhereAI/runanywhere-web) |
+| SDK monorepo | [runanywhere-sdks](https://github.com/RunanywhereAI/runanywhere-sdks) |
+| Documentation | [docs.runanywhere.ai](https://docs.runanywhere.ai) |
+| Discord | [discord.gg/N359FBbDVd](https://discord.gg/N359FBbDVd) |
+
+## License
+
+RunAnywhere License, Apache 2.0 based with additional commercial-use terms. See
+[LICENSE](LICENSE).
