@@ -10,6 +10,7 @@ import type { DownloadEvent, ModelInfo, ModelsState } from '@runanywhere/electro
 import { createDownloadProgress, type DownloadProgressControl } from '../components/download-progress';
 import { icon } from '../components/icons';
 import { showError, showToast } from '../components/toast';
+import { groupByOrg } from '../../shared/model-org';
 import { escapeHtml, formatSize } from '../services/format';
 import { logger } from '../services/logger';
 import { saveAppSettings } from '../services/settings';
@@ -173,8 +174,18 @@ class ModelsView implements ViewInstance {
       heading.textContent = categoryLabel(category);
       section.append(heading);
 
-      for (const model of rows) {
-        section.append(this.buildRow(model));
+      // Publisher, then model. A flat list of forty rows under "Language" says
+      // nothing about who made what; the other three apps all group by org and
+      // this one did not. Smallest variant first within a publisher.
+      for (const group of groupByOrg(rows, (model) => model.sizeBytes)) {
+        const orgHeading = document.createElement('h4');
+        orgHeading.className = 'ra-models-org-heading ra-type-overline';
+        orgHeading.textContent = group.org.name;
+        section.append(orgHeading);
+
+        for (const model of group.models) {
+          section.append(this.buildRow(model));
+        }
       }
       fragment.append(section);
     }
