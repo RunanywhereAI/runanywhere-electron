@@ -741,6 +741,17 @@
   gap: var(--ra-space-sm);
 }
 
+/* Publisher label inside a category. Set quieter than the category heading so
+   the two levels read as a hierarchy rather than as two competing titles. */
+.ra-models-org-heading {
+  margin: var(--ra-space-sm) 0 0;
+  color: var(--ra-muted-foreground);
+}
+
+.ra-models-org-heading:first-of-type {
+  margin-top: 0;
+}
+
 .ra-model-row {
   display: flex;
   align-items: center;
