@@ -43,12 +43,12 @@ one. Choose More info, then Run anyway.
 
 ## What it looks like
 
-Captured with Qwen3.5 0.8B loaded through the llama.cpp backend.
+Captured with a small GGUF chat model loaded through the llama.cpp backend.
 
 | | |
 |---|---|
 | ![Chat](docs/screenshots/01-home.png) | ![Models](docs/screenshots/02-models.png) |
-| A new chat. The header names the loaded model, and the footer states that inference runs locally. | Models lists what is on disk and what can be pulled, grouped by embeddings and language, with sizes. |
+| A new chat. The header names the loaded model, and the footer states that inference runs locally. | Models lists what is on disk and what can be pulled, grouped by capability and then by who published it, with sizes. |
 
 The image files are in [`docs/screenshots/`](docs/screenshots).
 
@@ -66,6 +66,14 @@ The image files are in [`docs/screenshots/`](docs/screenshots).
 | **Models** | Download, inspect, and remove models; see disk usage |
 
 Conversations and settings stay on disk under `%APPDATA%\RunAnywhere AI\`.
+
+## Models
+
+The picker groups models by capability and then by publisher, so you pick a name you
+recognise and then a size. It carries current-generation open models across chat, vision,
+speech, and embedding, from small ones that answer instantly to larger ones a desktop can
+hold. Anything that wants more memory than a modest machine has is badged rather than
+hidden.
 
 ## macOS
 
