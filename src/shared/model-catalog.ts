@@ -261,6 +261,17 @@ export const CATALOG: Catalog = {
   // not (`-1.6b-`). That is upstream's spelling, not a typo to normalize.
   'lfm2.5-vl-3b': vlm('LiquidAI/LFM2.5-VL-3B-GGUF', 'LFM2.5-VL-3B-Q4_K_M.gguf', 'mmproj-LFM2.5-VL-3B-F16.gguf', 'LFM2.5 VL 3B', '3B', 2528, true, 'lfm1'),
 
+  // ---- Qwen3.8 27B at 1 bit, on the Hexagon NPU ----
+  // NOT a QNN context bundle like the LFM2.5 rows below. Windows on ARM64 refuses
+  // external op-package registration, and every decode shard of this model is built
+  // around custom IQ*Linear ops - so instead the manifest is `host_only`, the
+  // published GGUF is read in place, and only the matmuls cross to the cDSP over
+  // direct FastRPC. One 6.3 GB weights file, its manifest, and a tokenizer.
+  'qwen3.8-27b-1bit-npu': npu(
+    'runanywhere/qwen3_8_27b_HNPU', 'v81', 'qwen3.8-27b-ud-iq1m-512.json',
+    ['Qwen3.8-27B-UD-IQ1_M.gguf', 'tokenizer.json'],
+    'Qwen3.8 27B 1-bit (NPU)', '27B', 6417,
+  ),
   // ---- LFM2.5 on the Hexagon NPU (QHexRT) ----
   // Same weights family as the GGUF rows above, compiled to QNN context binaries.
   // These load only on a Hexagon v81 device (Snapdragon X / X2 Elite on Windows
