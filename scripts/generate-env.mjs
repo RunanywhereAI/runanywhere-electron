@@ -85,12 +85,25 @@ if (process.argv.includes('--restore')) {
 
   const apiKey = read('RUNANYWHERE_API_KEY');
   const baseUrl = read('RUNANYWHERE_BASE_URL');
+  // backendConfig() (src/main/env.ts) only calls itself "production" when
+  // BOTH are non-empty. Baking in just one — e.g. a real apiKey with no
+  // baseUrl — would ship a live credential inside a build that still
+  // self-reports as "development", which is worse than shipping neither:
+  // the credential is real, but nothing downstream treats it as such. So
+  // partial configuration is not a smaller version of production, it is
+  // rejected the same way as no configuration at all.
+  const both = apiKey !== '' && baseUrl !== '';
 
-  writeGeneratedEnv(apiKey, baseUrl);
+  writeGeneratedEnv(both ? apiKey : '', both ? baseUrl : '');
 
-  console.log(
-    apiKey && baseUrl
-      ? 'generate-env: baked in production credentials (apiKey set, baseUrl set)'
-      : 'generate-env: no credentials found in .env / environment — blank defaults (development)',
-  );
+  if (both) {
+    console.log('generate-env: baked in production credentials (apiKey set, baseUrl set)');
+  } else if (apiKey || baseUrl) {
+    console.log(
+      'generate-env: only one of RUNANYWHERE_API_KEY / RUNANYWHERE_BASE_URL is set — ' +
+        'writing blank defaults (development). Both are required for a production build.',
+    );
+  } else {
+    console.log('generate-env: no credentials found in .env / environment — blank defaults (development)');
+  }
 }
