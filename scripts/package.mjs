@@ -45,7 +45,14 @@ let activeChild = null;
  */
 function run(command, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: repoRoot, stdio: 'inherit', shell: process.platform === 'win32' });
+    // shell:true is needed ONLY to resolve npm.cmd/npx.cmd on Windows (they are batch-file shims,
+    // not directly executable). process.execPath is always node.exe itself -- a real, directly
+    // spawnable binary on every platform -- so it never goes through a shell. That distinction is
+    // what closes CodeRabbit's finding: with no shell, `child` IS the generator process, not a
+    // cmd.exe wrapper around it, so killing `child` on signal actually stops the process that
+    // writes real credentials, instead of leaving it orphaned to write AFTER the restore below.
+    const needsShell = process.platform === 'win32' && command !== process.execPath;
+    const child = spawn(command, args, { cwd: repoRoot, stdio: 'inherit', shell: needsShell });
     activeChild = child;
     child.once('error', (err) => {
       activeChild = null;
@@ -71,14 +78,31 @@ function restoreSync() {
   spawnSync(process.execPath, ['scripts/generate-env.mjs', '--restore'], { cwd: repoRoot, stdio: 'inherit' });
 }
 
+/** Kills `child` and everything it spawned. On Windows, `child.kill()` alone only
+ * signals the immediate process (a shell wrapper, when one is in play, per the
+ * needsShell logic above) -- it does not reach that shell's own descendants, and
+ * the OS then largely ignores which signal was requested regardless. `taskkill
+ * /T /F` walks the whole process tree by PID, which is the standard workaround
+ * (see the Node.js child_process docs' own notes on Windows signal limitations).
+ * Synchronous and best-effort: if taskkill itself fails (e.g. the process already
+ * exited), that is not a reason to skip the credential restore that follows. */
+function killTree(child, signal) {
+  if (!child) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    child.kill(signal);
+  }
+}
+
 let restoring = false;
 function handleSignal(signal, exitCode) {
   // A second Ctrl-C while the handler is already restoring should not
-  // re-enter it (spawnSync is not reentrant-safe here) or double-forward the
-  // signal to a child that is already gone.
+  // re-enter it (spawnSync is not reentrant-safe here) or double-kill a
+  // child that is already gone.
   if (restoring) return;
   restoring = true;
-  if (activeChild) activeChild.kill(signal);
+  killTree(activeChild, signal);
   restoreSync();
   process.exit(exitCode);
 }
