@@ -227,7 +227,7 @@ repo's AGENTS.md); package and ship it from there. A real Windows production
 build/test pass needs an actual Windows machine — ask a maintainer for access to
 the project's Windows test host rather than assuming a local VM.
 
-## Windows NPU release lessons (v0.20.29 — read before shipping a new SDK bump)
+## Windows NPU release lessons (v0.20.29 through v0.20.31 — read before shipping a new SDK bump)
 
 **Every QHexRT model except the Bonsai/Maple ternary decoder (`qwen3.8-27b-1bit-npu`) can
 pass a full packaged-app smoke test and still ship a broken app.** A fresh v0.20.29
@@ -238,7 +238,7 @@ even at max native log verbosity. `lfm2.5-230m-npu` (a standard QNN HTP model) w
 correctly in the *same build*, which is what made this look like a full regression sweep
 had passed when it hadn't.
 
-Root cause: the Bonsai/Maple decoder resolves its FastRPC skel
+Root cause (first of two — see below): the Bonsai/Maple decoder resolves its FastRPC skel
 (`librun_main_on_hexagon_skel.so`) through `ADSP_LIBRARY_PATH` on Windows — a real,
 load-bearing search-path mechanism, not just an Android convention. `bridge.ts`'s
 `addSidecarDirToDllSearch` already extended `PATH` for every registered plugin directory
@@ -253,10 +253,30 @@ directory before starting Electron — that env var happened to mask the gap for
 interactive test run. A real user downloading the packaged installer had no such override
 and would hit `HostOpFailed` on their very first message with this model.
 
+**#803 alone was NOT enough — the SAME `HostOpFailed` recurred in the v0.20.30 release
+that shipped it.** Live device tracing on a Snapdragon X2 Elite confirmed
+`ADSP_LIBRARY_PATH` was in fact correctly populated at the moment of failure this time (a
+debug print patched into the packaged app's `bridge.js` showed the right directory first
+in the search list), which ruled out the first bug as the remaining cause. A QAIRT-version
+mismatch between the shipped host DLLs and this device's on-device HTP skel was also found
+and independently confirmed real, but fixing it alone (swapping in a matching QAIRT
+version) did **not** fix the failure either — a second red herring. The actual second bug
+was in the SDK's native layer, not this repo: `qhexrt::qnn::Backend::profile()` (called to
+pick the `v75`/`v79`/`v81` manifest directory, before the manifest is even parsed) shared
+its device query with the code path that opens a real QNN HTP device — so the ternary
+decoder's `host_only` manifest, which has zero QNN graphs and was designed to never touch
+that device at all, paid for one anyway, and that live device then contended with the
+decoder's own direct FastRPC session for the same Hexagon cDSP. Fixed in `neurun` v0.20.31
+(`Backend::profile()` now uses a separate, device-handle-free query) plus a complementary
+`runanywhere-sdks#810`. See that repo's `qhexrt-profile-must-not-create-live-device` KB
+finding for the full trace.
+
 **How to apply:** whenever this app bumps to a new SDK version that touches the QHexRT
 binding or the Bonsai/ternary decode path, do not trust a smoke test that only exercises
-a standard NPU model (e.g. `lfm2.5-230m-npu`). Run the ternary model specifically, from a
+a standard NPU model (e.g. `lfm2.5-230m-npu`), and do not trust a fix for one previously-
+found cause of `HostOpFailed` without re-running the ternary model — this exact error
+string has now had two unrelated root causes. Run the ternary model specifically, from a
 **freshly packaged, freshly installed** build with **no manually exported environment
-variables** — that is the only way to catch a packaging gap like this one. Bonsai TTFT is
-minutes long (measured ~6-9 min on Snapdragon X2 Elite), so budget real time for this
-check rather than bailing out early.
+variables** — that is the only way to catch a packaging or native-runtime gap like these.
+Bonsai TTFT is minutes long (measured ~6-9 min on Snapdragon X2 Elite), so budget real time
+for this check rather than bailing out early.
