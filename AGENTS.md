@@ -226,3 +226,37 @@ desktop release is `runanywhere-ios`'s native macOS target instead (see that
 repo's AGENTS.md); package and ship it from there. A real Windows production
 build/test pass needs an actual Windows machine — ask a maintainer for access to
 the project's Windows test host rather than assuming a local VM.
+
+## Windows NPU release lessons (v0.20.29 — read before shipping a new SDK bump)
+
+**Every QHexRT model except the Bonsai/Maple ternary decoder (`qwen3.8-27b-1bit-npu`) can
+pass a full packaged-app smoke test and still ship a broken app.** A fresh v0.20.29
+Windows ARM64 package (no local overlay, clean `npm ci` against the published
+`@runanywhere/electron-qhexrt`) loaded that model fine and then failed every generation
+with `qhx_generate(stream) failed: HostOpFailed` — a bare error with no further detail
+even at max native log verbosity. `lfm2.5-230m-npu` (a standard QNN HTP model) worked
+correctly in the *same build*, which is what made this look like a full regression sweep
+had passed when it hadn't.
+
+Root cause: the Bonsai/Maple decoder resolves its FastRPC skel
+(`librun_main_on_hexagon_skel.so`) through `ADSP_LIBRARY_PATH` on Windows — a real,
+load-bearing search-path mechanism, not just an Android convention. `bridge.ts`'s
+`addSidecarDirToDllSearch` already extended `PATH` for every registered plugin directory
+(the standard QNN HTP graph load path) but never extended `ADSP_LIBRARY_PATH` the same
+way, so it was silently unset on every real end-user launch. Fixed in
+`runanywhere-sdks#803` (`addSidecarDirToDspSearchPath`, called from the same place
+`addSidecarDirToDllSearch` already runs).
+
+**Why this slipped through:** the 2026-08-19 Bonsai bring-up validation launched the app
+via a script that manually set `ADSP_LIBRARY_PATH` to an external dev-staged skel
+directory before starting Electron — that env var happened to mask the gap for every
+interactive test run. A real user downloading the packaged installer had no such override
+and would hit `HostOpFailed` on their very first message with this model.
+
+**How to apply:** whenever this app bumps to a new SDK version that touches the QHexRT
+binding or the Bonsai/ternary decode path, do not trust a smoke test that only exercises
+a standard NPU model (e.g. `lfm2.5-230m-npu`). Run the ternary model specifically, from a
+**freshly packaged, freshly installed** build with **no manually exported environment
+variables** — that is the only way to catch a packaging gap like this one. Bonsai TTFT is
+minutes long (measured ~6-9 min on Snapdragon X2 Elite), so budget real time for this
+check rather than bailing out early.
