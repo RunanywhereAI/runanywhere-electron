@@ -31,13 +31,13 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "@runanywhere/electron": "^0.20.30",
-    "@runanywhere/electron-llamacpp": "^0.20.30",
-    "@runanywhere/electron-neurt": "^0.20.30",
-    "@runanywhere/electron-onnx": "^0.20.30",
-    "@runanywhere/electron-qhexrt": "^0.20.30",
-    "@runanywhere/electron-sherpa": "^0.20.30",
-    "@runanywhere/proto-ts": "^0.20.30"
+    "@runanywhere/electron": "^0.20.31",
+    "@runanywhere/electron-llamacpp": "^0.20.31",
+    "@runanywhere/electron-neurt": "^0.20.31",
+    "@runanywhere/electron-onnx": "^0.20.31",
+    "@runanywhere/electron-qhexrt": "^0.20.31",
+    "@runanywhere/electron-sherpa": "^0.20.31",
+    "@runanywhere/proto-ts": "^0.20.31"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
