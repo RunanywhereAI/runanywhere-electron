@@ -271,6 +271,15 @@ decoder's own direct FastRPC session for the same Hexagon cDSP. Fixed in `neurun
 `runanywhere-sdks#810`. See that repo's `qhexrt-profile-must-not-create-live-device` KB
 finding for the full trace.
 
+**A THIRD, RCLI-specific cause of this same error signature existed too** (fixed in
+`RunanywhereAI/RCLI`#45: its build script only staged `*.dll` next to `rcli.exe`, never the
+skel's `.so`/`.cat`) — this app's own `bindings/electron/scripts/bundle-native.ts` already
+staged those correctly, so it did NOT affect Electron, but it is why the SDK fix alone did
+not immediately resolve the identical error on RCLI during verification. If this exact
+`HostOpFailed` signature ever reappears here despite both SDK fixes being current, do not
+assume it is a re-run of either known cause — check what actually differs about this app's
+own packaging first.
+
 **How to apply:** whenever this app bumps to a new SDK version that touches the QHexRT
 binding or the Bonsai/ternary decode path, do not trust a smoke test that only exercises
 a standard NPU model (e.g. `lfm2.5-230m-npu`), and do not trust a fix for one previously-
